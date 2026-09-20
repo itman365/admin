@@ -1,0 +1,45 @@
+J()},0);return inf;
+ }
+ return null;
+}
+function installAdrianIntelligence(){
+ const core=window.adrianAnswer||adrianAnswer;if(typeof core!=='function')return;
+ const wrapped=function(text){const q=String(text||'').trim(),l=normalizeText(q);
+  if(/^(что срочно\??|что важнее\??|приоритеты\??)$/.test(l)){const top=topAttention(5).filter(x=>x.score>=28);return top.length?'Сейчас я бы смотрел сюда:\n'+top.map((x,i)=>`${i+1}. [${x.priority} ${x.score}/100] ${x.title}\n   ${reasonText(x)}`).join('\n'):'Срочных сигналов не вижу.'}
+  if(/^(что изменилось\??|контекст\??)$/.test(l)){return `Контекст: ${J.location.name}, ${weatherSummary()}.\n`+topAttention(3).map(x=>`• ${x.title}: ${reasonText(x)}`).join('\n')}
+  if(/погода.*задач|задач.*погод|что с погод/.test(l)){const r=earliestRain(10);const sensitive=topAttention(10).filter(x=>(x.reasons||[]).some(a=>/осад|дожд|воды/.test(a)));return `${J.location.name}: ${weatherSummary()}.`+(sensitive.length?'\nПогода влияет на:\n'+sensitive.map(x=>`• ${x.title}: ${reasonText(x)}`).join('\n'):'\nАктивных погодозависимых задач не вижу.')}
+  let m=q.match(/^(?:задача|надо|нужно|сделать)\s+(.+)/i);if(m){const inf=createSmartNatural('task',m[1]);return inf?`Записал задачу. JARVIS поставил ${inf.priority}${inf.due?' со сроком '+fmtDate(inf.due):''}. Причина: ${inf.reasons.slice(0,2).join(' · ')||'обычная задача'}.`:`Записать не получилось.`}
+  m=q.match(/^(?:заметка|запомни)\s+(.+)/i);if(m){const inf=createSmartNatural('note',m[1]);return inf?`Сохранил в Память. Контекстный приоритет: ${inf.priority}${inf.due?' до '+fmtDate(inf.due):''}.`:`Сохранить не получилось.`}
+  m=q.match(/^цель\s+(.+)/i);if(m){const inf=createSmartNatural('goal',m[1]);return inf?`Создал цель. JARVIS будет держать её в контексте.`:`Создать не получилось.`}
+  return core(text)
+ };
+ window.adrianAnswer=wrapped;try{adrianAnswer=wrapped}catch{}
+}
+
+function syncUtilityDue(){
+ if(typeof state==='undefined')return;const t=state.inbox.find(x=>/коммунал|показани.{0,15}(счетчик|счетчика)/i.test(x.text||''));if(!t)return;t.due=nextMonthlyDay(J.rules.utilitiesDay);const m=taskMeta(t.id);m.autoDue=true;m.rule='utilities';applyInferenceToTask(t,{force:true});try{save()}catch{}
+}
+function downloadUtilitiesCalendar(){
+ const d=nextMonthlyDay(J.rules.utilitiesDay).replace(/-/g,''),day=J.rules.utilitiesDay;const ics=`BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//VALENTIN OS JARVIS//RU\r\nBEGIN:VEVENT\r\nUID:utilities@valentin-os\r\nDTSTART;VALUE=DATE:${d}\r\nRRULE:FREQ=MONTHLY;BYMONTHDAY=${day}\r\nSUMMARY:Коммуналка: показания и оплата\r\nDESCRIPTION:VALENTIN OS · JARVIS\r\nBEGIN:VALARM\r\nTRIGGER:-P3D\r\nACTION:DISPLAY\r\nDESCRIPTION:Через 3 дня коммуналка\r\nEND:VALARM\r\nBEGIN:VALARM\r\nTRIGGER:-P1D\r\nACTION:DISPLAY\r\nDESCRIPTION:Завтра срок коммуналки\r\nEND:VALARM\r\nEND:VEVENT\r\nEND:VCALENDAR`;
+ const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([ics],{type:'text/calendar'}));a.download='JARVIS-kommunalka.ics';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),3000);toast('Календарь коммуналки готов')
+}
+async function requestSignals(){
+ if(!('Notification'in window)){toast('Системные уведомления здесь недоступны');return}
+ try{const p=await Notification.requestPermission();J.notificationEnabled=p==='granted';persistJ();toast(p==='granted'?'Сигналы включены':'Уведомления не разрешены');if(p==='granted')maybeAlert(true)}catch{toast('Не удалось включить уведомления')}
+}
+async function maybeAlert(force=false){
+ if(!J.notificationEnabled||Notification.permission!=='granted')return;const top=topAttention(3).filter(x=>x.score>=55);if(!top.length)return;const sig=top.map(x=>x.id+':'+x.priority).join('|');if(!force&&sig===J.lastAlertSignature)return;J.lastAlertSignature=sig;persistJ();const body=top.map(x=>`${x.priority}: ${x.title}`).join('\n');try{const reg=await navigator.serviceWorker.ready;reg.showNotification('JARVIS · что требует внимания',{body,icon:'./icon.svg',tag:'jarvis-attention'})}catch{}
+}
+function priorityAdvisoryOnForeground(){recalcAll({notify:true});const top=topAttention(1)[0];if(top?.score>=82)toast(`JARVIS: критично — ${top.title}`)}
+async function refreshContext(force=false){await fetchWeather({force});recalcAll({notify:true});renderJarvis();toast(J.weather.error?'JARVIS: погода недоступна':'Контекст обновлён')}
+
+function patchScore(){if(typeof scoreTask!=='function')return;const old=scoreTask;scoreTask=function(t){const m=taskMeta(t.id);return Math.max(old(t),m.score||0)}}
+function installObservers(){const obs=new MutationObserver(()=>{if(document.getElementById('smTitle')&&!document.getElementById('jarvisSuggestion'))attachSmartForm(null);decorateSmartCards();renderJarvis()});obs.observe(document.body,{childList:true,subtree:true});document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')refreshContext(false)});window.addEventListener('focus',()=>refreshContext(false))}
+
+async function bootJarvis(){
+ injectJarvisUI();installCaptureIntelligence();installAdrianIntelligence();patchScore();ensureUtilityTask();await fetchWeather({force:false});recalcAll();renderJarvis();installObservers();maybeAlert();
+ const ver=document.querySelector('.version');if(ver)ver.textContent='JARVIS · V7';
+}
+window.VALENTIN_JARVIS={refresh:()=>refreshContext(true),top:()=>topAttention(10),weather:()=>clone(J.weather),infer:inferPriority,open:openJarvis};
+bootJarvis().catch(e=>{console.error('JARVIS boot',e);try{toast('JARVIS загрузился не полностью')}catch{}});
+})();
