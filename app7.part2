@@ -1,0 +1,65 @@
+Day(J.rules.utilitiesDay);inferredDue=due;autoDue=true;reasons.push(`правило коммуналки: до ${J.rules.utilitiesDay}-го числа`)}
+ const rain=sig.some(x=>x.k==='rain')?earliestRain():null;
+ if(rain){score+=32;reasons.push(`в Анапе ожидаются осадки ${fmtDate(rain.date)}: ${rain.prob}%`);tags.push('weather:rain');if(!due||meta.autoDue){const before=addDaysIso(rain.date,-1);if(!due||before<due){due=before;inferredDue=before;autoDue=true;reasons.push(`лучше закончить до дождя: ${fmtDate(before)}`)}}}
+ if(due){const d=daysBetween(due);if(d<0){score+=48;reasons.push(`срок просрочен на ${Math.abs(d)} дн.`)}else if(d===0){score+=42;reasons.push('срок сегодня')}else if(d===1){score+=34;reasons.push('срок завтра')}else if(d<=3){score+=26;reasons.push(`до срока ${d} дн.`)}else if(d<=7){score+=14;reasons.push(`до срока ${d} дн.`)}}
+ if(sig.some(x=>x.k==='structural')&&score<62)score=62;
+ if(sig.some(x=>x.k==='safety')&&score<86)score=86;
+ score=Math.min(100,Math.round(score));
+ return {score,priority:SCORE_TO_PRIORITY(score),reasons:[...new Set(reasons)].slice(0,5),due:inferredDue||due||'',autoDue,tags:[...new Set(tags)]};
+}
+function taskMeta(id){return J.meta.tasks[id]||(J.meta.tasks[id]={})}
+function memMeta(id){return J.meta.memory[id]||(J.meta.memory[id]={})}
+function priorityWeight(p){return {Низко:8,Обычно:25,Высоко:60,Критично:88}[p]||25}
+
+function applyInferenceToTask(t,{silent=true,force=false}={}){
+ const m=taskMeta(t.id);const inf=inferPriority(t,{meta:m});
+ m.score=inf.score;m.priority=inf.priority;m.reasons=inf.reasons;m.tags=inf.tags;m.lastAt=Date.now();
+ if(inf.autoDue){m.autoDue=true;t.due=inf.due}
+ if(J.rules.autoPriority&&(force||!m.manualOverride)){t.priority=inf.priority;m.autoManaged=true}
+ return inf;
+}
+function evaluateMemory(){
+ const mem=getMemory();for(const x of mem){const m=memMeta(x.id);const inf=inferPriority(x,{meta:m});Object.assign(m,{score:inf.score,priority:inf.priority,reasons:inf.reasons,tags:inf.tags,lastAt:Date.now(),due:inf.due})}
+}
+function recalcAll({notify=false}={}){
+ if(typeof state==='undefined')return;
+ state.inbox.forEach(t=>applyInferenceToTask(t));evaluateMemory();persistJ();
+ try{save()}catch{try{localStorage.setItem('valentin_os_v5',JSON.stringify(state))}catch{}}
+ renderJarvis();decorateSmartCards();
+ if(notify)maybeAlert();
+}
+
+async function fetchWeather({force=false}={}){
+ if(refreshing)return J.weather;refreshing=true;
+ try{
+  if(!force&&J.weather.fetchedAt&&Date.now()-J.weather.fetchedAt<45*60*1000){refreshing=false;return J.weather}
+  const l=J.location;
+  const url=`https://api.open-meteo.com/v1/forecast?latitude=${encodeURIComponent(l.lat)}&longitude=${encodeURIComponent(l.lon)}&current=temperature_2m,weather_code&daily=precipitation_probability_max,precipitation_sum,weather_code&timezone=${encodeURIComponent(l.timezone)}&forecast_days=14`;
+  const r=await fetch(url,{cache:'no-store'});if(!r.ok)throw new Error('weather '+r.status);const d=await r.json();
+  const daily=(d.daily?.time||[]).map((date,i)=>({date,prob:Number(d.daily?.precipitation_probability_max?.[i]||0),mm:Number(d.daily?.precipitation_sum?.[i]||0),code:Number(d.daily?.weather_code?.[i]||0)}));
+  J.weather={fetchedAt:Date.now(),current:{temp:d.current?.temperature_2m??null,code:d.current?.weather_code??null},daily,error:''};J.lastContextAt=Date.now();persistJ();
+ }catch(e){J.weather.error=String(e?.message||e);persistJ()}finally{refreshing=false}
+ return J.weather;
+}
+function weatherSummary(){
+ const r=earliestRain(10),c=J.weather.current;let bits=[];if(c?.temp!=null)bits.push(`${Math.round(c.temp)}°C`);if(r)bits.push(`дождь ${fmtDate(r.date)} · ${r.prob}%`);else if(J.weather.fetchedAt)bits.push('существенных осадков на горизонте не вижу');else bits.push('погода ещё не обновлена');return bits.join(' · ')
+}
+function topAttention(limit=5){
+ if(typeof state==='undefined')return [];
+ const tasks=state.inbox.map(t=>{const m=taskMeta(t.id),inf=m.score!=null?{score:m.score,priority:m.priority,reasons:m.reasons}:inferPriority(t,{meta:m});return {id:t.id,source:'task',title:t.text,details:t.details||'',due:t.due||'',...inf}});
+ const mem=getMemory().filter(x=>!x.archived&&['note','goal'].includes(x.kind)).map(x=>{const m=memMeta(x.id);return {id:x.id,source:'memory',kind:x.kind,title:x.title,details:x.body||'',due:x.dueDate||m.due||'',score:m.score??priorityWeight(x.priority),priority:m.priority||x.priority||'Обычно',reasons:m.reasons||[]}});
+ return tasks.concat(mem).sort((a,b)=>(b.score||0)-(a.score||0)).slice(0,limit)
+}
+function reasonText(x){return (x.reasons||[]).slice(0,2).join(' · ')||'обычный приоритет'}
+
+function ensureUtilityTask(){
+ if(!J.rules.utilitiesEnabled||typeof state==='undefined')return;
+ const found=state.inbox.find(t=>/коммунал|показани.{0,15}(счетчик|счетчика)/i.test(t.text||''));
+ if(found)return;
+ const due=nextMonthlyDay(J.rules.utilitiesDay);
+ const id=uid();state.inbox.push({id,text:'Коммуналка: передать показания и оплатить',details:`Ежемесячно до ${J.rules.utilitiesDay}-го числа. JARVIS поднимает приоритет по мере приближения срока.`,priority:'Обычно',due,dueTime:'',tags:['дом','платежи','jarvis'],repeat:'monthly',created:typeof nowLabel==='function'?nowLabel():new Date().toLocaleString('ru-RU'),createdDate:localIso(),createdTs:Date.now(),updatedTs:Date.now()});
+ const m=taskMeta(id);m.autoManaged=true;m.autoDue=true;m.rule='utilities';applyInferenceToTask(state.inbox[state.inbox.length-1],{force:true});
+}
+
+function injectJarvisUI(){
+ if(uiInjected)return;uiInjected=true;
