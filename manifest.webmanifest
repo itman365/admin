@@ -1,0 +1,11 @@
+{
+  "name":"VALENTIN OS",
+  "short_name":"VALENTIN OS",
+  "description":"Личный штаб Валентина: Эдриан, фокус, деньги, проекты, люди, идеи и голосовые заметки.",
+  "start_url":"./",
+  "scope":"./",
+  "display":"standalone",
+  "background_color":"#080b10",
+  "theme_color":"#080b10",
+  "icons":[{"src":"./icon.svg","sizes":"any","type":"image/svg+xml","purpose":"any maskable"}]
+}
