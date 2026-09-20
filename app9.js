@@ -15,15 +15,16 @@ function refreshCount(){const n=snapshots().length;const c=document.getElementBy
 function preSnapshot(reason){try{const data=capture(),signature=JSON.stringify(data),arr=snapshots();if(arr.length&&arr[arr.length-1].signature===signature)return;arr.push({at:Date.now(),reason,data,signature});localStorage.setItem(SAFETY_KEY,JSON.stringify(arr.slice(-MAX_SNAPS)));refreshCount()}catch(e){console.warn('Safety snapshot failed',e)}}
 function wrap(name,reason){const fn=window[name];if(typeof fn!=='function'||fn.__safe9)return;const w=function(...args){preSnapshot(reason);return fn.apply(this,args)};w.__safe9=true;window[name]=w;try{if(typeof globalThis[name]==='function')globalThis[name]=w}catch{}}
 
-// Any task completion must be reversible, including completion directly from Inbox.
+// Completion and confirmed deletion must always be reversible.
 wrap('finishInbox','До завершения задачи');
+wrap('confirmSafeDelete','До удаления записи');
 
-// Editing existing data must snapshot BEFORE the original mutator changes state.
+// Editing and adding existing entities must snapshot BEFORE mutation.
 [
  ['saveInbox','До изменения задачи'],['saveProject','До изменения проекта'],['saveDeal','До изменения сделки'],
  ['savePerson','До изменения человека'],['saveIdea','До изменения идеи'],['saveMoneySettings','До изменения денег'],
  ['addProject','До добавления проекта'],['addDeal','До добавления сделки'],['addPerson','До добавления человека'],
- ['addIdea','До добавления идеи'],['addDecision','До добавления решения']
+ ['addIdea','До добавления идеи'],['addDecision','До добавления решения'],['saveQuickAdd','До быстрого добавления']
 ].forEach(([n,r])=>wrap(n,r));
 
 // Quick inbox and weekly review are event-driven rather than exposed mutators.
@@ -46,11 +47,12 @@ function integrity(){
   for(const g of groups){const a=Array.isArray(st[g])?st[g]:[];const ids=a.map(x=>x?.id).filter(Boolean);if(new Set(ids).size!==ids.length)issues.push(`Дубли ID: ${g}`)}
   const validP=new Set(['Низко','Обычно','Высоко','Критично']);for(const t of (st.inbox||[])){if(t.priority&&!validP.has(t.priority))warn.push(`Неизвестный приоритет: ${t.text||'задача'}`);if(t.repeat&&!['none','daily','weekly','monthly'].includes(t.repeat))issues.push(`Некорректный повтор: ${t.text||'задача'}`)}
   const utils=(st.inbox||[]).filter(t=>/коммунал|показани.{0,15}(счетчик|счетчика)/i.test(t.text||''));if(utils.length>1)warn.push(`Похожие задачи коммуналки: ${utils.length}`);
+  const links=parse(LINK_KEY,'{}');if(links&&typeof links==='object'){const focusIds=new Set((st.focus||[]).map(x=>x.id)),taskIds=new Set((st.inbox||[]).map(x=>x.id));for(const [fid,v] of Object.entries(links)){if(!focusIds.has(fid))warn.push('Есть устаревшая связь фокуса');if(v?.taskId&&!taskIds.has(v.taskId))warn.push('Фокус связан с отсутствующей задачей')}}
  }
  const mem=parse(MEM_KEY,'[]');if(mem===null||!Array.isArray(mem))issues.push('Память не читается');else{const ids=mem.map(x=>x?.id).filter(Boolean);if(new Set(ids).size!==ids.length)issues.push('Дубли ID в Памяти')}
  for(const [k,label] of [[SMART_KEY,'Smart metadata'],[JARVIS_KEY,'JARVIS'],[LINK_KEY,'Связи фокуса']])if(localStorage.getItem(k)!==null&&parse(k,'{}')===null)issues.push(`${label}: повреждён JSON`);
  const errors=parse(ERROR_KEY,'[]');const recent=Array.isArray(errors)?errors.slice(-5):[];if(recent.length)warn.push(`Журнал JS-ошибок: ${recent.length} последних записей`);
- return {ok:!issues.length,issues,warn,checkedAt:new Date().toISOString(),counts:{tasks:st?.inbox?.length||0,memory:Array.isArray(mem)?mem.length:0,projects:st?.projects?.length||0,snapshots:snapshots().length}}
+ return {ok:!issues.length,issues,warn:[...new Set(warn)],checkedAt:new Date().toISOString(),counts:{tasks:st?.inbox?.length||0,memory:Array.isArray(mem)?mem.length:0,projects:st?.projects?.length||0,snapshots:snapshots().length}}
 }
 function showIntegrity(){const r=integrity(),esc2=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));const rows=[...r.issues.map(x=>`<p class="hot">✕ ${esc2(x)}</p>`),...r.warn.map(x=>`<p>△ ${esc2(x)}</p>`)];modal(`<div class="eyebrow">ДИАГНОСТИКА</div><h2>${r.ok?'Целостность данных: OK':'Найдены ошибки'}</h2><p class="muted">Задач: ${r.counts.tasks} · Память: ${r.counts.memory} · Проектов: ${r.counts.projects} · Снимков: ${r.counts.snapshots}</p>${rows.length?rows.join(''):'<p>Критических проблем структуры данных не найдено.</p>'}<div class="modal-actions"><button class="btn" onclick="closeModal()">Закрыть</button></div>`)}
 window.VALENTIN_DIAGNOSTICS={run:integrity,snapshot:preSnapshot};
