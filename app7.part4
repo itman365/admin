@@ -1,0 +1,36 @@
+${x.score}/100</span><h3>${escJ(x.title)}</h3></div></div>${x.details?`<p>${escJ(x.details)}</p>`:''}<div class="jarvis-reasons">${(x.reasons||[]).map(r=>`<span>${escJ(r)}</span>`).join('')}</div>${x.due?`<small class="muted">Срок: ${escJ(fmtDate(x.due))}</small>`:''}</article>`).join(''):'<div class="empty">Система спокойна. Подозрительно, но приятно.</div>';
+ const cnt=document.getElementById('jarvisCount');if(cnt)cnt.textContent=top.filter(x=>x.score>=55).length;
+ const ap=document.getElementById('jarvisAutoPriority');if(ap)ap.checked=Boolean(J.rules.autoPriority);const rd=document.getElementById('jarvisRainDays');if(rd)rd.value=String(J.rules.rainLookahead);const ud=document.getElementById('jarvisUtilityDay');if(ud)ud.value=String(J.rules.utilitiesDay);
+ document.querySelectorAll('.jarvis-row').forEach(b=>b.onclick=()=>{const id=b.dataset.jid,src=b.dataset.jsource;if(src==='task'){if(typeof go==='function')go('today');setTimeout(()=>window.editInbox?.(id),120)}else{if(typeof openBase==='function')openBase('memory');setTimeout(()=>window.editMemory?.(id),120)}});
+}
+function decorateSmartCards(){
+ const now=Date.now();if(now-lastDecorate<100)return;lastDecorate=now;
+ if(typeof state!=='undefined')document.querySelectorAll('#inboxList .task').forEach(el=>{const title=el.querySelector('.task-copy b')?.textContent?.trim();const t=state.inbox.find(x=>x.text===title);if(!t)return;const m=taskMeta(t.id);if(!m.reasons?.length)return;let r=el.querySelector('.jarvis-inline-reason');if(!r){r=document.createElement('div');r.className='jarvis-inline-reason';el.querySelector('.task-copy')?.appendChild(r)}r.textContent='JARVIS · '+m.reasons.slice(0,2).join(' · ')});
+ const mem=getMemory();document.querySelectorAll('#memoryList .memory-card').forEach(el=>{const title=el.querySelector('h3')?.textContent?.trim();const x=mem.find(a=>a.title===title);if(!x)return;const m=memMeta(x.id);if(!m.score)return;let badge=el.querySelector('.jarvis-mem-badge');if(!badge){badge=document.createElement('span');badge.className='jarvis-mem-badge';el.querySelector('.memory-card-title')?.prepend(badge)}badge.textContent=`J ${m.priority} · ${m.score}`})
+}
+
+function installCaptureIntelligence(){
+ const originalOpen=window.openSmartCapture;if(typeof originalOpen==='function')window.openSmartCapture=function(kind='note',data=null){originalOpen(kind,data);setTimeout(()=>attachSmartForm(data),0)};
+ const originalSave=window.saveSmartCapture;if(typeof originalSave==='function')window.saveSmartCapture=function(source,id){smartFillFormBeforeSave(source,id);return originalSave(source,id)};
+}
+function attachSmartForm(data){
+ const title=document.getElementById('smTitle'),body=document.getElementById('smBody'),pri=document.getElementById('smPriority');if(!title||!pri)return;
+ pri.addEventListener('change',()=>{pri.dataset.userTouched='1'});
+ const box=document.querySelector('#modal .capture-form');if(box&&!document.getElementById('jarvisSuggestion')){const sug=document.createElement('div');sug.id='jarvisSuggestion';sug.className='jarvis-suggestion';box.insertBefore(sug,box.querySelector('.modal-actions'));const upd=()=>previewSmartForm(data);title.addEventListener('input',upd);body?.addEventListener('input',upd);document.getElementById('smDate')?.addEventListener('change',upd);upd()}
+}
+function currentFormItem(){return {title:document.getElementById('smTitle')?.value||'',body:document.getElementById('smBody')?.value||'',priority:document.getElementById('smPriority')?.value||'Обычно',dueDate:document.getElementById('smDate')?.value||''}}
+function previewSmartForm(data){const item=currentFormItem(),inf=inferPriority(item,{meta:{manualOverride:document.getElementById('smPriority')?.dataset.userTouched==='1'}}),s=document.getElementById('jarvisSuggestion');if(!s)return;s.innerHTML=`<b>JARVIS предлагает: ${escJ(inf.priority)}</b><span>${escJ(inf.reasons.slice(0,3).join(' · ')||'контекстных рисков пока не вижу')}</span>${inf.due&&!item.dueDate?`<small>Предлагаемый срок: ${escJ(fmtDate(inf.due))}</small>`:''}`}
+function smartFillFormBeforeSave(source,id){
+ const title=document.getElementById('smTitle'),body=document.getElementById('smBody'),pri=document.getElementById('smPriority'),date=document.getElementById('smDate');if(!title||!pri)return;
+ const touched=pri.dataset.userTouched==='1';const inf=inferPriority({title:title.value,body:body?.value||'',priority:pri.value,dueDate:date?.value||''},{meta:{manualOverride:touched}});
+ if(!touched&&J.rules.autoPriority)pri.value=inf.priority;if(date&&!date.value&&inf.due)date.value=inf.due;
+ if(source==='task'&&id){const m=taskMeta(id);m.manualOverride=touched;m.autoManaged=!touched;m.autoDue=!date?.value||Boolean(inf.autoDue);Object.assign(m,{score:inf.score,priority:inf.priority,reasons:inf.reasons,tags:inf.tags,lastAt:Date.now()})}
+ setTimeout(()=>{recalcAll();persistJ()},0)
+}
+
+function createSmartNatural(kind,text){
+ const body=String(text||'').trim();if(!body)return null;
+ const inf=inferPriority({title:body,body});
+ if(typeof window.openSmartCapture==='function'&&typeof window.saveSmartCapture==='function'){
+  window.openSmartCapture(kind);const set=(id,v)=>{const e=document.getElementById(id);if(e)e.value=v};set('smTitle',body);set('smBody','');set('smPriority',inf.priority);if(inf.due)set('smDate',inf.due);const tags=document.getElementById('smTags');if(tags&&inf.tags.length)tags.value=inf.tags.filter(x=>!x.includes(':')).join(', ');window.saveSmartCapture('new','');
+  setTimeout(()=>{recalcAll();persist
