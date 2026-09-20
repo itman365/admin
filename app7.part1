@@ -1,0 +1,69 @@
+(()=>{
+'use strict';
+const JKEY='valentin_os_jarvis_v1';
+const MEMORY_KEY='valentin_os_memory_v1';
+const SMART_META_KEY='valentin_os_smart_meta_v1';
+const PRI_ORDER={Низко:1,Обычно:2,Высоко:3,Критично:4};
+const SCORE_TO_PRIORITY=s=>s>=82?'Критично':s>=55?'Высоко':s>=28?'Обычно':'Низко';
+const DEFAULT_J={
+ version:1,
+ location:{name:'Анапа',lat:44.89497,lon:37.31623,timezone:'Europe/Moscow'},
+ rules:{autoPriority:true,rainLookahead:7,rainProbability:40,rainMm:0.5,utilitiesEnabled:true,utilitiesDay:25,utilitiesLeadDays:3},
+ weather:{fetchedAt:0,current:null,daily:[],error:''},
+ meta:{tasks:{},memory:{}},
+ events:[],lastContextAt:0,lastAlertSignature:'',notificationEnabled:false
+};
+let J=loadJ();
+let refreshing=false;
+let uiInjected=false;
+let lastDecorate=0;
+
+function clone(x){return JSON.parse(JSON.stringify(x))}
+function loadJ(){try{const raw=JSON.parse(localStorage.getItem(JKEY)||'null');return raw?deepMerge(clone(DEFAULT_J),raw):clone(DEFAULT_J)}catch{return clone(DEFAULT_J)}}
+function deepMerge(a,b){for(const [k,v] of Object.entries(b||{})){if(v&&typeof v==='object'&&!Array.isArray(v)&&a[k]&&typeof a[k]==='object'&&!Array.isArray(a[k]))a[k]=deepMerge(a[k],v);else a[k]=v}return a}
+function persistJ(){localStorage.setItem(JKEY,JSON.stringify(J))}
+function escJ(s){return String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
+function localIso(d=new Date()){return [d.getFullYear(),String(d.getMonth()+1).padStart(2,'0'),String(d.getDate()).padStart(2,'0')].join('-')}
+function daysBetween(a,b=localIso()){if(!a)return null;return Math.floor((new Date(a+'T12:00:00')-new Date(b+'T12:00:00'))/86400000)}
+function fmtDate(s){if(!s)return '';try{return new Date(s+'T12:00:00').toLocaleDateString('ru-RU',{day:'numeric',month:'short'})}catch{return s}}
+function addDaysIso(s,n){const d=new Date(s+'T12:00:00');d.setDate(d.getDate()+n);return localIso(d)}
+function nextMonthlyDay(day){const d=new Date();let y=d.getFullYear(),m=d.getMonth();let x=new Date(y,m,day,12);if(localIso(x)<localIso(d)){m++;x=new Date(y,m,day,12)}return localIso(x)}
+function normalizeText(s){return String(s||'').toLowerCase().replace(/ё/g,'е')}
+function getMemory(){try{const x=JSON.parse(localStorage.getItem(MEMORY_KEY)||'[]');return Array.isArray(x)?x:[]}catch{return []}}
+function getSmartMeta(){try{return JSON.parse(localStorage.getItem(SMART_META_KEY)||'{}')}catch{return {}}}
+
+function parseExplicitDue(text){
+ const l=normalizeText(text),today=localIso();
+ if(/\bсегодня\b/.test(l))return today;
+ if(/\bзавтра\b/.test(l))return addDaysIso(today,1);
+ const nd=l.match(/через\s+(\d{1,3})\s*(?:дн|дня|дней)/);if(nd)return addDaysIso(today,+nd[1]);
+ const dm=l.match(/(?:до\s+)?(\d{1,2})[.\/-](\d{1,2})(?:[.\/-](\d{2,4}))?/);if(dm){let y=dm[3]?+dm[3]:new Date().getFullYear();if(y<100)y+=2000;return `${y}-${String(+dm[2]).padStart(2,'0')}-${String(+dm[1]).padStart(2,'0')}`}
+ const day=l.match(/(?:до\s+)?(\d{1,2})(?:-?го)?\s*(?:числа)?\b/);if(day&&+day[1]<=31){return nextMonthlyDay(+day[1])}
+ return '';
+}
+function earliestRain(days=J.rules.rainLookahead){
+ const daily=J.weather.daily||[];const now=localIso();
+ return daily.find(x=>x.date>=now&&daysBetween(x.date)<=days&&(Number(x.prob)||0)>=J.rules.rainProbability&&(Number(x.mm)||0)>=J.rules.rainMm)||
+        daily.find(x=>x.date>=now&&daysBetween(x.date)<=days&&(Number(x.mm)||0)>=1)||null;
+}
+function riskSignals(text){
+ const l=normalizeText(text),signals=[];
+ if(/фундамент|несущ|трещин|просел|просадк|обвал|разруш|поруш|блок.{0,20}(рух|упал|развал|поруш)/.test(l))signals.push({k:'structural',score:48,reason:'есть риск дальнейшего повреждения конструкции'});
+ if(/крыша|кровл|пленк|мембран|протеч|затек|гидроизоляц|теч.{0,20}(дом|кры)/.test(l))signals.push({k:'rain',score:24,reason:'работа зависит от осадков и защиты дома от воды'});
+ if(/газ|утечк.{0,10}газ|пожар|горит.{0,10}провод|искрит|коротк.{0,10}замык|аварийн|лопнул.{0,10}труб/.test(l))signals.push({k:'safety',score:60,reason:'потенциальный риск безопасности или аварии'});
+ if(/коммунал|квартплат|показани.{0,15}(счетчик|счетчика)|счетчик.{0,15}показан/.test(l))signals.push({k:'utilities',score:20,reason:'регулярный платёж/показания со сроком'});
+ if(/штраф|налог|кредит|ипотек|аренд|платеж|оплат|счет.{0,10}оплат/.test(l))signals.push({k:'money',score:18,reason:'есть денежные последствия задержки'});
+ if(/клиент|сделк|лид|авито|договор|коммерческ|созвон|продаж/.test(l))signals.push({k:'revenue',score:16,reason:'задача влияет на клиента или деньги'});
+ if(/сроч|немедлен|сейчас|горит/.test(l))signals.push({k:'explicitUrgency',score:20,reason:'в формулировке указан срочный характер'});
+ return signals;
+}
+function inferPriority(item,opts={}){
+ const text=[item.title,item.text,item.body,item.details].filter(Boolean).join(' ');
+ const sig=riskSignals(text);let score=8,reasons=[],tags=[];let inferredDue='';let autoDue=false;
+ sig.forEach(x=>{score+=x.score;reasons.push(x.reason);tags.push(x.k)});
+ const meta=opts.meta||{};
+ const manual=item.priority||'Обычно';
+ if(meta.manualOverride){score=Math.max(score,{Низко:8,Обычно:25,Высоко:60,Критично:88}[manual]||25);reasons.push(`ручной минимум: ${manual}`)}
+ let due=item.due||item.dueDate||parseExplicitDue(text);
+ if(!due){const explicit=parseExplicitDue(text);if(explicit){due=explicit;inferredDue=explicit;autoDue=true;reasons.push(`срок распознан из текста: ${fmtDate(explicit)}`)}}
+ if(sig.some(x=>x.k==='utilities')&&J.rules.utilitiesEnabled&&!due){due=nextMonthly
