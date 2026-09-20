@@ -1,8 +1,8 @@
 {
   "name":"VALENTIN OS",
   "short_name":"VALENTIN OS",
-  "description":"Личный штаб Валентина: Эдриан, фокус, деньги, проекты, люди, идеи и голосовые заметки.",
-  "start_url":"./",
+  "description":"Личная операционная система Валентина: Эдриан, радар, фокус, деньги, проекты, люди, идеи и голос.",
+  "start_url":"./?v=5",
   "scope":"./",
   "display":"standalone",
   "background_color":"#080b10",
