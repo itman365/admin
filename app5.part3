@@ -1,0 +1,47 @@
+elect">${optionsProjects(x.projectId)}</select></div></div>
+    <div class="modal-grid"><div><label class="field-label">Дата</label><input id="smDate" type="date" class="input" value="${esc(x.dueDate||x.due||'')}"></div><div><label class="field-label">Время</label><input id="smTime" type="time" class="input" value="${esc(x.dueTime||'')}"></div></div>
+    <div class="modal-grid"><div><label class="field-label">Привязать к цели</label><select id="smGoal" class="select">${optionsGoals(x.goalId)}</select></div><div id="smRepeatWrap"><label class="field-label">Повтор</label><select id="smRepeat" class="select"><option value="none">Нет</option><option value="daily">Каждый день</option><option value="weekly">Каждую неделю</option><option value="monthly">Каждый месяц</option></select></div></div>
+    <div id="smProgressWrap"><label class="field-label">Прогресс цели</label><input id="smProgress" type="number" min="0" max="100" class="input" value="${Number(x.progress)||0}"></div>
+    <label class="field-label">Теги через запятую</label><input id="smTags" class="input" value="${esc(tagsText(x.tags))}" placeholder="работа, CITO, важное">
+    <label class="inline-check"><span>Закрепить в важном</span><input id="smPinned" type="checkbox" ${x.pinned?'checked':''}></label>
+    <div class="modal-actions">${data&&data.source==='memory'?`<button class="btn secondary" onclick="archiveMemory('${x.id}')">${x.archived?'Вернуть':'В архив'}</button><button class="btn danger" onclick="deleteMemory('${x.id}')">Удалить</button>`:''}<button class="btn" onclick="saveSmartCapture('${data?.source||'new'}','${x.id||''}')">Сохранить</button></div>
+  </div>`);
+  $('smKind').value=x.kind||kind;$('smPriority').value=x.priority||'Обычно';if($('smRepeat'))$('smRepeat').value=x.repeat||'none';
+  const update=()=>{const k=$('smKind').value;$('smRepeatWrap').style.display=k==='task'?'block':'none';$('smProgressWrap').style.display=k==='goal'?'block':'none'};$('smKind').addEventListener('change',update);update();
+}
+window.openSmartCapture=openSmartCapture;
+window.saveSmartCapture=(source,id)=>{
+  const kind=$('smKind').value,title=$('smTitle').value.trim(),body=$('smBody').value.trim();if(!title&&!body){toast('Нужно хоть что-то записать');return}
+  const common={title:title||body.slice(0,80),body,priority:$('smPriority').value,dueDate:$('smDate').value,dueTime:$('smTime').value,projectId:$('smProject').value,goalId:$('smGoal').value,tags:parseTags($('smTags').value),pinned:$('smPinned').checked,repeat:$('smRepeat')?.value||'none',progress:+$('smProgress')?.value||0};
+  if(source==='memory'){
+    const x=memory.find(a=>a.id===id);if(x)Object.assign(x,common,{kind,updatedTs:nowTs()});persistMemory();closeModal();toast('Сохранено');return
+  }
+  if(source==='task'){
+    const t=state.inbox.find(a=>a.id===id);if(t)Object.assign(t,{text:common.title,details:common.body,priority:common.priority,due:common.dueDate,dueTime:common.dueTime,projectId:common.projectId,goalId:common.goalId,tags:common.tags,pinned:common.pinned,repeat:common.repeat,updatedTs:nowTs()});closeModal();save('Сохранено');return
+  }
+  if(kind==='task')state.inbox.unshift({id:uid(),text:common.title,details:common.body,priority:common.priority,due:common.dueDate,dueTime:common.dueTime,projectId:common.projectId,goalId:common.goalId,tags:common.tags,pinned:common.pinned,repeat:common.repeat,created:nowLabel(),createdDate:iso(),createdTs:nowTs(),updatedTs:nowTs()});
+  else if(kind==='idea')state.ideas.unshift({id:uid(),text:common.title+(common.body?' — '+common.body:''),type:'Идея',status:'Новая',priority:common.priority,tags:common.tags,projectId:common.projectId,pinned:common.pinned,createdTs:nowTs(),updatedTs:nowTs()});
+  else memory.unshift(makeMemItem({...common,kind}));
+  localStorage.setItem(MEMORY_KEY,JSON.stringify(memory));closeModal();save('Добавлено');
+};
+window.editMemory=id=>{const x=memory.find(a=>a.id===id);if(x)openSmartCapture(x.kind,{...x,source:'memory'})};
+window.archiveMemory=id=>{const x=memory.find(a=>a.id===id);if(x){x.archived=!x.archived;x.updatedTs=nowTs();persistMemory(x.archived?'В архиве':'Возвращено');closeModal()}};
+window.deleteMemory=id=>{memory=memory.filter(a=>a.id!==id);persistMemory('Удалено');closeModal()};
+window.toggleMemPin=id=>{const x=memory.find(a=>a.id===id);if(x){x.pinned=!x.pinned;x.updatedTs=nowTs();persistMemory()}};
+
+function smartICS(title,date,time,description=''){
+  const clean=s=>String(s||'').replace(/[\\,;]/g,m=>'\\'+m).replace(/\n/g,'\\n'),d=date.replace(/-/g,'');let dt='';
+  if(time){const tm=time.replace(':','')+'00';dt=`DTSTART:${d}T${tm}\r\nDTEND:${d}T${String(Number(tm.slice(0,2))+1).padStart(2,'0')}${tm.slice(2)}`}
+  else dt=`DTSTART;VALUE=DATE:${d}`;
+  const ics=`BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//VALENTIN OS//RU\r\nBEGIN:VEVENT\r\nUID:${uid()}@valentin-os\r\nDTSTAMP:${new Date().toISOString().replace(/[-:]/g,'').replace(/\.\d{3}/,'')}\r\n${dt}\r\nSUMMARY:${clean(title)}\r\nDESCRIPTION:${clean(description)}\r\nEND:VEVENT\r\nEND:VCALENDAR`;
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([ics],{type:'text/calendar'}));a.download='VALENTIN-OS.ics';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),4000)
+}
+window.calendarMemory=id=>{const x=memory.find(a=>a.id===id);if(x?.dueDate)smartICS(x.title,x.dueDate,x.dueTime,x.body)};
+const oldCalendarTask=window.calendarTask;window.calendarTask=id=>{const t=state.inbox.find(x=>x.id===id);if(t?.due)smartICS(t.text,t.due,t.dueTime,t.details||'');else oldCalendarTask?.(id)};
+
+// Rich task editor + visible metadata in Today
+window.editInbox=id=>{const t=state.inbox.find(x=>x.id===id);if(!t)return;openSmartCapture('task',{id:t.id,kind:'task',title:t.text,body:t.details||'',priority:t.priority||'Обычно',dueDate:t.due||'',dueTime:t.dueTime||'',tags:t.tags||[],projectId:t.projectId||'',goalId:t.goalId||'',pinned:t.pinned,repeat:t.repeat||'none',source:'task'})};
+renderInbox=function(){
+  $('inboxBadge').textContent=state.inbox.length;
+  const list=state.inbox.slice().sort((a,b)=>scoreTask(b)-scoreTask(a));
+  $('inboxList').innerHTML=list.length?list.map(t=>{const extra=[];if(t.priority&&t.priority!=='Обычно')extra.push(`<span class="${['Высоко','Критично'].includes(t.priority)?'hot':''}">${esc(t.priority)}</span>`);if(t.due)extra.push(`<span>${esc(dateTimeText(t.due,t.dueTime))}</span>`);if(t.projectId&&projectName(t.projectId))extra.push(`<span>${esc(projectName(t.projectId))}</span>`);if(t.repeat&&t.repeat!=='none')extra.pus
