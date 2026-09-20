@@ -55,7 +55,7 @@ function reasonText(x){return (x.reasons||[]).slice(0,2).join(' · ')||'обыч
 function ensureUtilityTask(){
  if(!J.rules.utilitiesEnabled||typeof state==='undefined')return;
  const found=state.inbox.find(t=>/коммунал|показани.{0,15}(счетчик|счетчика)/i.test(t.text||''));
- if(found)return;
+ if(found){if(taskMeta(found.id).rule==='utilities')found.repeat='monthly';return}
  const due=nextMonthlyDay(J.rules.utilitiesDay);
  const id=uid();state.inbox.push({id,text:'Коммуналка: передать показания и оплатить',details:`Ежемесячно до ${J.rules.utilitiesDay}-го числа. JARVIS поднимает приоритет по мере приближения срока.`,priority:'Обычно',due,dueTime:'',tags:['дом','платежи','jarvis'],repeat:'monthly',created:typeof nowLabel==='function'?nowLabel():new Date().toLocaleString('ru-RU'),createdDate:localIso(),createdTs:Date.now(),updatedTs:Date.now()});
  const m=taskMeta(id);m.autoManaged=true;m.autoDue=true;m.rule='utilities';applyInferenceToTask(state.inbox[state.inbox.length-1],{force:true});

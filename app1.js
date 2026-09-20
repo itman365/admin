@@ -32,12 +32,12 @@ function migrate(raw){
   if(!raw)return structuredClone(DEFAULT);
   const n=structuredClone(DEFAULT);
   if(Array.isArray(raw.focus))n.focus=raw.focus.slice(0,3).map(x=>({id:x.id||uid(),text:x.text||x.t||'Главное дело',done:Boolean(x.done??x.d)}));
-  if(Array.isArray(raw.inbox))n.inbox=raw.inbox.map(x=>({id:x.id||uid(),text:x.text||x.t||'',created:x.created||x.c||nowLabel(),createdDate:x.createdDate||iso(),due:x.due||'',priority:x.priority||'Обычно'}));
+  if(Array.isArray(raw.inbox))n.inbox=raw.inbox.map(x=>({...x,id:x.id||uid(),text:x.text||x.t||'',created:x.created||x.c||nowLabel(),createdDate:x.createdDate||iso(),due:x.due||'',priority:x.priority||'Обычно'}));
   if(Array.isArray(raw.projects))n.projects=raw.projects.map(x=>({id:x.id||uid(),name:x.name||x.n||'Проект',status:x.status||x.s||'Активно',next:x.next||'',progress:Number(x.progress??x.p)||0,updated:x.updated||iso()}));
   n.money={goal:Number(raw.money?.goal)||300000,fact:Number(raw.money?.fact)||0};
   if(Array.isArray(raw.deals))n.deals=raw.deals.map(x=>({id:x.id||uid(),name:x.name||x.n||'Сделка',amount:Number(x.amount??x.a)||0,stage:x.stage||x.s||'Потенциал',next:x.next||'',date:x.date||'',created:x.created||iso(),updated:x.updated||iso()}));
   if(Array.isArray(raw.people))n.people=raw.people.map(x=>({id:x.id||uid(),name:x.name||x.n||'Человек',promise:x.promise||x.t||'',status:x.status||'Открыто',date:x.date||'',updated:x.updated||iso()}));
-  if(Array.isArray(raw.ideas))n.ideas=raw.ideas.map(x=>({id:x.id||uid(),text:x.text||x.t||'',type:x.type||'Идея',status:x.status||'Новая'}));
+  if(Array.isArray(raw.ideas))n.ideas=raw.ideas.map(x=>({...x,id:x.id||uid(),text:x.text||x.t||'',type:x.type||'Идея',status:x.status||'Новая'}));
   if(Array.isArray(raw.decisions))n.decisions=raw.decisions;
   if(Array.isArray(raw.chat))n.chat=raw.chat.slice(-30);
   if(Array.isArray(raw.history))n.history=raw.history.slice(-100);
