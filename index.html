@@ -7,189 +7,230 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="VALENTIN OS">
-  <meta name="description" content="Личный штаб Валентина: Эдриан, фокус, деньги, проекты, люди, идеи и голосовые заметки.">
+  <meta name="description" content="VALENTIN OS — личный штаб Валентина с Эдрианом, радаром, фокусом, деньгами, проектами, людьми, идеями и голосом.">
   <link rel="manifest" href="./manifest.webmanifest">
   <link rel="icon" href="./icon.svg">
   <link rel="apple-touch-icon" href="./icon.svg">
-  <link rel="stylesheet" href="./app.css?v=4">
+  <link rel="stylesheet" href="./app.css?v=5">
   <title>VALENTIN OS</title>
 </head>
 <body>
-  <div id="app" class="app-shell">
-    <header class="topbar">
-      <div>
-        <div class="brand">VALENTIN OS <span class="version">V4</span></div>
-        <h1 id="greeting">Твой штаб</h1>
-        <div id="dateLine" class="muted"></div>
-      </div>
+<div id="app" class="app-shell">
+  <header class="topbar">
+    <div>
+      <div class="brand">VALENTIN OS <span class="version">FINAL · V5</span></div>
+      <h1 id="greeting">Твой штаб</h1>
+      <div id="dateLine" class="muted"></div>
+    </div>
+    <div class="top-actions">
+      <button id="globalSearchBtn" class="icon-btn" aria-label="Поиск">⌕</button>
       <button id="privacyBtn" class="icon-btn" aria-label="Скрыть экран">◐</button>
-    </header>
+    </div>
+  </header>
 
-    <main>
-      <section class="screen active" data-screen="home">
-        <article class="card adrian-hero">
-          <div class="hero-top">
-            <div>
-              <div class="eyebrow">ЭДРИАН · БРИФИНГ</div>
-              <h2 id="briefTitle">Что важно прямо сейчас</h2>
-            </div>
-            <div class="adrian-dot">A</div>
-          </div>
-          <p id="briefText" class="brief-text"></p>
-          <div class="button-row">
-            <button id="speakBriefBtn" class="btn secondary">▶ Озвучить</button>
-            <button id="refreshBriefBtn" class="btn ghost">Обновить</button>
-          </div>
-        </article>
-
-        <div class="capture-grid">
-          <button id="voiceCommandBtn" class="capture-card"><span>🎙</span><b>Сказать</b><small>диктовка-команда</small></button>
-          <button id="voiceNoteBtn" class="capture-card"><span>●</span><b>Голосовая</b><small>записать заметку</small></button>
-          <button id="quickTaskBtn" class="capture-card"><span>＋</span><b>Добавить</b><small>задача / идея / человек</small></button>
+  <main>
+    <section class="screen active" data-screen="home">
+      <article class="card adrian-hero">
+        <div class="hero-top">
+          <div><div class="eyebrow">ЭДРИАН · БРИФИНГ</div><h2 id="briefTitle">Что важно прямо сейчас</h2></div>
+          <div class="adrian-dot">A</div>
         </div>
-
-        <div class="section-head"><h2>Три главных</h2><button data-go="today" class="text-btn">Открыть</button></div>
-        <div id="homeFocus" class="card"></div>
-
-        <div class="section-head"><h2>Пульс</h2></div>
-        <div class="metrics-grid">
-          <div class="metric"><span>Получено</span><b id="metricFact">0 ₽</b></div>
-          <div class="metric"><span>В работе</span><b id="metricPipeline">0 ₽</b></div>
-          <div class="metric"><span>Инбокс</span><b id="metricInbox">0</b></div>
-          <div class="metric"><span>Обещания</span><b id="metricPeople">0</b></div>
+        <p id="briefText" class="brief-text"></p>
+        <div class="button-row">
+          <button id="morningBtn" class="btn">☀ Утро</button>
+          <button id="eveningBtn" class="btn secondary">☾ Вечер</button>
+          <button id="speakBriefBtn" class="btn ghost">▶ Озвучить</button>
         </div>
+      </article>
 
-        <div class="section-head"><h2>Быстрый инбокс</h2></div>
-        <div class="quick-row">
-          <input id="quickInput" class="input" placeholder="Мысль, задача, обещание…">
-          <button id="quickAddBtn" class="btn">Добавить</button>
+      <div class="section-head">
+        <h2>Радар Эдриана</h2>
+        <span id="radarBadge" class="pill">0</span>
+      </div>
+      <div id="radarList" class="radar-list"></div>
+
+      <div class="capture-grid">
+        <button id="voiceCommandBtn" class="capture-card"><span>🎙</span><b>Сказать</b><small>команда Эдриану</small></button>
+        <button id="voiceNoteBtn" class="capture-card"><span>●</span><b>Голосовая</b><small>записать мысль</small></button>
+        <button id="quickTaskBtn" class="capture-card"><span>＋</span><b>Добавить</b><small>задача / идея / решение</small></button>
+      </div>
+
+      <div class="section-head"><h2>Три главных</h2><button id="startFocusBtn" class="btn small">▶ Фокус</button></div>
+      <div id="homeFocus" class="card"></div>
+
+      <div class="section-head"><h2>Пульс</h2><span id="opsScore" class="score-pill">0</span></div>
+      <div class="metrics-grid">
+        <div class="metric"><span>Получено</span><b id="metricFact">0 ₽</b></div>
+        <div class="metric"><span>В работе</span><b id="metricPipeline">0 ₽</b></div>
+        <div class="metric"><span>Инбокс</span><b id="metricInbox">0</b></div>
+        <div class="metric"><span>Обещания</span><b id="metricPeople">0</b></div>
+      </div>
+
+      <div class="section-head"><h2>Быстрый инбокс</h2></div>
+      <div class="quick-row">
+        <input id="quickInput" class="input" placeholder="Мысль, задача, обещание…">
+        <button id="quickAddBtn" class="btn">Добавить</button>
+      </div>
+    </section>
+
+    <section class="screen" data-screen="adrian">
+      <article class="card adrian-panel">
+        <div class="eyebrow">ЭДРИАН · ЛОКАЛЬНЫЙ МОЗГ</div>
+        <h2>Командный центр</h2>
+        <p class="muted">Работаю с тем, что реально записано в твоём OS. Без API-ключа и без отправки личных данных наружу.</p>
+        <div id="adrianChat" class="chat"></div>
+        <div class="command-row">
+          <input id="adrianInput" class="input" placeholder="Что главное? / найди Амаяк / задача…">
+          <button id="adrianMicBtn" class="icon-btn mic">🎙</button>
+          <button id="adrianSendBtn" class="btn">Отправить</button>
         </div>
-      </section>
-
-      <section class="screen" data-screen="adrian">
-        <article class="card adrian-panel">
-          <div class="eyebrow">ЛОКАЛЬНЫЙ ЭДРИАН</div>
-          <h2>Командный центр</h2>
-          <p class="muted">Я здесь разбираю твои данные локально: приоритеты, сделки, обещания и перегруз. Никаких ключей и утечек.</p>
-          <div id="adrianChat" class="chat"></div>
-          <div class="command-row">
-            <input id="adrianInput" class="input" placeholder="Например: что главное? / сделка 120000 Амаяк">
-            <button id="adrianMicBtn" class="icon-btn mic">🎙</button>
-            <button id="adrianSendBtn" class="btn">Отправить</button>
-          </div>
-          <div class="chips">
-            <button data-cmd="Что главное?">Что главное?</button>
-            <button data-cmd="Что по деньгам?">Что по деньгам?</button>
-            <button data-cmd="Кому ответить?">Кому ответить?</button>
-            <button data-cmd="Разложи день">Разложи день</button>
-            <button data-cmd="Где затык?">Где затык?</button>
-          </div>
-        </article>
-
-        <div class="section-head"><h2>Журнал решений</h2><button id="addDecisionBtn" class="btn small">+ Решение</button></div>
-        <div id="decisionsList" class="card"></div>
-
-        <div class="section-head"><h2>Передать настоящему Эдриану</h2></div>
-        <article class="card">
-          <p class="muted">Приложение соберёт компактный бриф из твоего текущего состояния. Копируешь его и кидаешь мне в ChatGPT, когда нужен уже не алгоритм, а мозги.</p>
-          <div class="button-row">
-            <button id="copyContextBtn" class="btn">Скопировать бриф</button>
-            <a class="btn secondary link-btn" href="https://chatgpt.com/" target="_blank" rel="noopener">Открыть ChatGPT</a>
-          </div>
-        </article>
-      </section>
-
-      <section class="screen" data-screen="today">
-        <div class="section-head"><h2>Сегодня</h2><button id="editFocusBtn" class="btn small">Изменить 3 главных</button></div>
-        <div id="todayFocus" class="card"></div>
-
-        <div class="section-head"><h2>Инбокс</h2><span id="inboxBadge" class="pill">0</span></div>
-        <div id="inboxList" class="card"></div>
-      </section>
-
-      <section class="screen" data-screen="money">
-        <div class="section-head"><h2>Деньги</h2><button id="moneySettingsBtn" class="btn small">Настроить</button></div>
-        <article class="card money-card">
-          <div class="money-top"><div><span>Получено</span><b id="moneyFact">0 ₽</b></div><div class="right"><span>Цель</span><b id="moneyGoal">300 000 ₽</b></div></div>
-          <div class="progress"><i id="moneyProgress"></i></div>
-          <div class="metrics-grid three">
-            <div class="metric"><span>В работе</span><b id="moneyPipeline">0 ₽</b></div>
-            <div class="metric"><span>Потенциал</span><b id="moneyPotential">0 ₽</b></div>
-            <div class="metric"><span>До цели</span><b id="moneyGap">0 ₽</b></div>
-          </div>
-        </article>
-        <div class="section-head"><h2>Сделки</h2><button id="addDealBtn" class="btn small">+ Сделка</button></div>
-        <div id="dealsList" class="card"></div>
-      </section>
-
-      <section class="screen" data-screen="base">
-        <div class="base-tabs">
-          <button class="active" data-base="projects">Проекты</button>
-          <button data-base="people">Люди</button>
-          <button data-base="ideas">Идеи</button>
-          <button data-base="voice">Голос</button>
-          <button data-base="review">Неделя</button>
-          <button data-base="settings">Данные</button>
+        <div class="chips">
+          <button data-cmd="Радар">Радар</button>
+          <button data-cmd="Что главное?">Что главное?</button>
+          <button data-cmd="Что по деньгам?">Что по деньгам?</button>
+          <button data-cmd="Кому ответить?">Кому ответить?</button>
+          <button data-cmd="Разложи день">Разложи день</button>
+          <button data-cmd="Где затык?">Где затык?</button>
         </div>
+      </article>
 
-        <div class="base-pane active" data-pane="projects">
-          <div class="section-head"><h2>Проекты</h2><button id="addProjectBtn" class="btn small">+ Проект</button></div>
-          <div id="projectsList" class="card"></div>
-        </div>
+      <div class="section-head"><h2>Журнал решений</h2><button id="addDecisionBtn" class="btn small">+ Решение</button></div>
+      <div id="decisionsList" class="card"></div>
 
-        <div class="base-pane" data-pane="people">
-          <div class="section-head"><h2>Люди и обещания</h2><button id="addPersonBtn" class="btn small">+ Добавить</button></div>
-          <div id="peopleList" class="card"></div>
+      <div class="section-head"><h2>Передать настоящему Эдриану</h2></div>
+      <article class="card">
+        <p class="muted">Соберу состояние системы в один бриф. Кидаешь его мне в ChatGPT, когда нужен полноценный разбор, а не локальные правила.</p>
+        <div class="button-row">
+          <button id="copyContextBtn" class="btn">Скопировать бриф</button>
+          <a class="btn secondary link-btn" href="https://chatgpt.com/" target="_blank" rel="noopener">Открыть ChatGPT</a>
         </div>
+      </article>
+    </section>
 
-        <div class="base-pane" data-pane="ideas">
-          <div class="section-head"><h2>Идеи / контент / офферы</h2><button id="addIdeaBtn" class="btn small">+ Идея</button></div>
-          <div id="ideasList" class="card"></div>
-        </div>
+    <section class="screen" data-screen="today">
+      <div class="section-head"><h2>Сегодня</h2><div class="button-row"><button id="autoPlanBtn" class="btn small secondary">Автоплан</button><button id="editFocusBtn" class="btn small">Изменить</button></div></div>
+      <div id="todayFocus" class="card"></div>
+      <div class="section-head"><h2>Инбокс</h2><span id="inboxBadge" class="pill">0</span></div>
+      <div id="inboxList" class="card"></div>
+    </section>
 
-        <div class="base-pane" data-pane="voice">
-          <div class="section-head"><h2>Голосовые заметки</h2><button id="recordVoiceBtn" class="btn small danger">● Записать</button></div>
-          <div id="voiceStatus" class="muted voice-status">Хранятся только на этом устройстве.</div>
-          <div id="voiceList" class="card"></div>
+    <section class="screen" data-screen="money">
+      <div class="section-head"><h2>Деньги</h2><button id="moneySettingsBtn" class="btn small">Настроить</button></div>
+      <article class="card money-card">
+        <div class="money-top"><div><span>Получено</span><b id="moneyFact">0 ₽</b></div><div class="right"><span>Цель</span><b id="moneyGoal">300 000 ₽</b></div></div>
+        <div class="progress"><i id="moneyProgress"></i></div>
+        <div class="metrics-grid three">
+          <div class="metric"><span>В работе</span><b id="moneyPipeline">0 ₽</b></div>
+          <div class="metric"><span>Потенциал</span><b id="moneyPotential">0 ₽</b></div>
+          <div class="metric"><span>До цели</span><b id="moneyGap">0 ₽</b></div>
         </div>
+      </article>
+      <div class="section-head"><h2>Сделки</h2><button id="addDealBtn" class="btn small">+ Сделка</button></div>
+      <div id="dealsList" class="card"></div>
+    </section>
 
-        <div class="base-pane" data-pane="review">
-          <div class="section-head"><h2>Недельный разбор</h2><button id="saveReviewBtn" class="btn small">Сохранить</button></div>
-          <div class="card review-card">
-            <label>Что принесло деньги?</label><textarea id="reviewMoney" class="textarea"></textarea>
-            <label>Что двинуло имя?</label><textarea id="reviewName" class="textarea"></textarea>
-            <label>Что сожрало время?</label><textarea id="reviewWaste" class="textarea"></textarea>
-            <label>Что прекращаю делать?</label><textarea id="reviewStop" class="textarea"></textarea>
-            <label>Главный результат следующей недели</label><textarea id="reviewNext" class="textarea"></textarea>
-          </div>
-        </div>
+    <section class="screen" data-screen="base">
+      <div class="base-tabs">
+        <button class="active" data-base="projects">Проекты</button>
+        <button data-base="people">Люди</button>
+        <button data-base="ideas">Идеи</button>
+        <button data-base="voice">Голос</button>
+        <button data-base="review">Неделя</button>
+        <button data-base="history">История</button>
+        <button data-base="settings">Настройки</button>
+      </div>
 
-        <div class="base-pane" data-pane="settings">
-          <div class="section-head"><h2>Данные и приватность</h2></div>
-          <div class="card settings-card">
-            <button id="persistBtn" class="btn secondary full">Закрепить хранение на iPhone</button>
-            <button id="exportBtn" class="btn secondary full">Экспорт JSON</button>
-            <label class="btn secondary full file-label">Импорт JSON<input id="importInput" type="file" accept="application/json,.json" hidden></label>
-            <button id="installHelpBtn" class="btn ghost full">Как установить как приложение</button>
-            <button id="resetBtn" class="btn danger full">Сбросить всё</button>
-          </div>
+      <div class="base-pane active" data-pane="projects">
+        <div class="section-head"><h2>Проекты</h2><button id="addProjectBtn" class="btn small">+ Проект</button></div>
+        <div id="projectsList" class="card"></div>
+      </div>
+
+      <div class="base-pane" data-pane="people">
+        <div class="section-head"><h2>Люди и обещания</h2><button id="addPersonBtn" class="btn small">+ Добавить</button></div>
+        <div id="peopleList" class="card"></div>
+      </div>
+
+      <div class="base-pane" data-pane="ideas">
+        <div class="section-head"><h2>Идеи / контент / офферы</h2><button id="addIdeaBtn" class="btn small">+ Идея</button></div>
+        <div id="ideasList" class="card"></div>
+      </div>
+
+      <div class="base-pane" data-pane="voice">
+        <div class="section-head"><h2>Голосовые заметки</h2><button id="recordVoiceBtn" class="btn small danger">● Записать</button></div>
+        <div id="voiceStatus" class="muted voice-status">Хранятся только на этом устройстве.</div>
+        <div id="voiceList" class="card"></div>
+      </div>
+
+      <div class="base-pane" data-pane="review">
+        <div class="section-head"><h2>Недельный разбор</h2><button id="saveReviewBtn" class="btn small">Сохранить</button></div>
+        <div class="card review-card">
+          <label>Что принесло деньги?</label><textarea id="reviewMoney" class="textarea"></textarea>
+          <label>Что двинуло имя?</label><textarea id="reviewName" class="textarea"></textarea>
+          <label>Что сожрало время?</label><textarea id="reviewWaste" class="textarea"></textarea>
+          <label>Что прекращаю делать?</label><textarea id="reviewStop" class="textarea"></textarea>
+          <label>Главный результат следующей недели</label><textarea id="reviewNext" class="textarea"></textarea>
         </div>
-      </section>
-    </main>
+      </div>
+
+      <div class="base-pane" data-pane="history">
+        <div class="section-head"><h2>История движения</h2><span id="streakBadge" class="pill">0 дней</span></div>
+        <div id="historyList" class="card"></div>
+      </div>
+
+      <div class="base-pane" data-pane="settings">
+        <div class="section-head"><h2>Настройки</h2></div>
+        <div class="card settings-card">
+          <button id="pinBtn" class="btn secondary full">Настроить PIN-блокировку</button>
+          <label class="toggle-row"><span><b>Блокировать при сворачивании</b><small>Защита от случайных глаз. Не криптошифрование.</small></span><input id="autoLockToggle" type="checkbox"></label>
+          <label class="setting-row"><span>Фокус-таймер</span><select id="focusMinutesSelect" class="select compact"><option value="25">25 мин</option><option value="50">50 мин</option><option value="90">90 мин</option></select></label>
+          <button id="persistBtn" class="btn secondary full">Закрепить хранение на iPhone</button>
+          <button id="exportBtn" class="btn secondary full">Экспорт JSON</button>
+          <label class="btn secondary full file-label">Импорт JSON<input id="importInput" type="file" accept="application/json,.json" hidden></label>
+          <button id="installHelpBtn" class="btn ghost full">Как установить как приложение</button>
+          <button id="resetBtn" class="btn danger full">Сбросить всё</button>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<nav class="bottom-nav">
+  <button class="active" data-nav="home"><span>⌂</span>Главная</button>
+  <button data-nav="adrian"><span>A</span>Эдриан</button>
+  <button data-nav="today"><span>✓</span>Сегодня</button>
+  <button data-nav="money"><span>₽</span>Деньги</button>
+  <button data-nav="base"><span>•••</span>База</button>
+</nav>
+
+<div id="modalWrap" class="modal-wrap"><div id="modal" class="modal"></div></div>
+<div id="toast" class="toast"></div>
+<div id="privacyCover" class="privacy-cover"><div><b>VALENTIN OS</b><span>Экран скрыт · нажми, чтобы открыть</span></div></div>
+
+<div id="focusOverlay" class="focus-overlay">
+  <div class="focus-box">
+    <div class="eyebrow">РЕЖИМ ФОКУСА</div>
+    <h2 id="focusTaskTitle">Главное дело</h2>
+    <div id="focusTimer" class="focus-timer">25:00</div>
+    <p class="muted">Один экран. Одно дело. Остальной мир пару минут переживёт.</p>
+    <div class="button-row center">
+      <button id="focusPauseBtn" class="btn secondary">Пауза</button>
+      <button id="focusDoneBtn" class="btn">Готово</button>
+      <button id="focusCloseBtn" class="btn ghost">Закрыть</button>
+    </div>
   </div>
+</div>
 
-  <nav class="bottom-nav">
-    <button class="active" data-nav="home"><span>⌂</span>Главная</button>
-    <button data-nav="adrian"><span>A</span>Эдриан</button>
-    <button data-nav="today"><span>✓</span>Сегодня</button>
-    <button data-nav="money"><span>₽</span>Деньги</button>
-    <button data-nav="base"><span>•••</span>База</button>
-  </nav>
+<div id="lockCover" class="lock-cover">
+  <div class="lock-box">
+    <div class="brand">VALENTIN OS</div>
+    <h2>Закрыто</h2>
+    <p class="muted">Введи PIN.</p>
+    <input id="unlockPin" class="input pin-input" type="password" inputmode="numeric" maxlength="6" placeholder="••••">
+    <button id="unlockBtn" class="btn full">Открыть</button>
+    <div id="unlockError" class="error-text"></div>
+  </div>
+</div>
 
-  <div id="modalWrap" class="modal-wrap"><div id="modal" class="modal"></div></div>
-  <div id="toast" class="toast"></div>
-  <div id="privacyCover" class="privacy-cover"><div><b>VALENTIN OS</b><span>Экран скрыт</span></div></div>
-
-  <script src="./app.js?v=4" defer></script>
+<script src="./app.js?v=5" defer></script>
 </body>
 </html>
