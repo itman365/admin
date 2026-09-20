@@ -1,1 +1,195 @@
-<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#090b10"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><title>VALENTIN OS</title><style>:root{--b:#090b10;--p:#131720;--p2:#0f131a;--t:#f6f7f8;--m:#8e96a6;--l:#29303d;--a:#d6ff4a}*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 100% 0,#1b2415 0,transparent 28rem),var(--b);color:var(--t);font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display",Arial,sans-serif;padding:env(safe-area-inset-top) 14px calc(14px + env(safe-area-inset-right)) 105px calc(14px + env(safe-area-inset-left))}.app{max-width:760px;margin:auto}.top{display:flex;justify-content:space-between;align-items:center;padding:14px 2px 18px}.brand{font-size:12px;font-weight:900;letter-spacing:.2em;color:var(--a)}h1{font-size:30px;margin:6px 0 0;letter-spacing:-.04em}.muted{color:var(--m);font-size:13px}.card{background:rgba(19,23,32,.94);border:1px solid var(--l);border-radius:22px;padding:16px;margin:10px 0}.hero{background:linear-gradient(145deg,rgba(214,255,74,.12),rgba(19,23,32,.96) 45%)}.big{font-size:46px;font-weight:950;letter-spacing:-.06em}.bar{height:9px;background:#262c36;border-radius:999px;overflow:hidden;margin-top:13px}.bar i{height:100%;display:block;background:var(--a);width:0}.row{display:grid;grid-template-columns:1fr auto;gap:8px}.inp,.area,.sel{width:100%;background:#0c1016;border:1px solid var(--l);color:var(--t);border-radius:14px;padding:13px;outline:none}.area{min-height:88px;resize:vertical}.btn{border:0;border-radius:14px;padding:12px 14px;background:var(--a);color:#111704;font-weight:900}.btn.s{background:#202733;color:#eef1f5;border:1px solid #303947}.btn.g{background:transparent;color:var(--m);padding:6px}.head{display:flex;align-items:center;justify-content:space-between;margin:20px 2px 8px}.head b{font-size:16px}.task{display:flex;gap:10px;align-items:flex-start;padding:12px 0;border-top:1px solid var(--l)}.task:first-child{border-top:0}.ck{width:24px;height:24px;border-radius:8px;border:1px solid #3a4555;background:#111722;flex:0 0 auto;color:#0a0d05}.done .ck{background:var(--a);border-color:var(--a)}.done .tt{text-decoration:line-through;color:#6f7684}.tt{flex:1}.tt b{display:block;font-size:14px}.tt small{color:var(--m)}.proj{border:1px solid var(--l);border-radius:17px;padding:13px;margin:9px 0;background:var(--p2)}.proj h3{margin:0;font-size:15px}.proj p{margin:7px 0 0;color:var(--m);font-size:12px;line-height:1.45}.tag{font-size:10px;padding:5px 8px;border-radius:999px;background:#202733;color:#b9c7d8}.ptop{display:flex;justify-content:space-between;gap:8px}.kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.k{background:var(--p2);border:1px solid var(--l);border-radius:15px;padding:11px}.k b{display:block;font-size:17px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.k span{font-size:10px;color:var(--m)}.screen{display:none}.screen.on{display:block}.nav{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(10px + env(safe-area-inset-bottom));width:min(720px,calc(100% - 20px));background:rgba(11,14,19,.93);backdrop-filter:blur(18px);border:1px solid var(--l);border-radius:20px;padding:7px;display:grid;grid-template-columns:repeat(5,1fr);z-index:5}.nav button{border:0;background:transparent;color:#7f8797;padding:9px 2px;border-radius:13px;font-size:10px}.nav button.on{background:#1d2430;color:#fff}.nav span{display:block;font-size:18px;margin-bottom:3px}.fab{position:fixed;right:20px;bottom:100px;width:56px;height:56px;border:0;border-radius:18px;background:var(--a);font-size:28px;z-index:4}.modalw{position:fixed;inset:0;background:#000a;display:none;align-items:flex-end;z-index:20}.modalw.on{display:flex}.modal{width:min(760px,100%);margin:auto;background:#11151d;border-radius:25px 25px 0 0;padding:18px 16px calc(18px + env(safe-area-inset-bottom));max-height:85vh;overflow:auto}.modal h2{margin:0 0 12px}.actions{display:flex;justify-content:flex-end;gap:8px;margin-top:10px}.empty{text-align:center;color:var(--m);padding:18px 4px;font-size:13px}.quote{font-size:18px;line-height:1.45}.two{display:grid;grid-template-columns:1fr 1fr;gap:8px}@media(max-width:520px){.two{grid-template-columns:1fr}}</style></head><body><div class="app"><div class="top"><div><div class="brand">VALENTIN OS</div><h1 id="hello">Твой штаб</h1><div class="muted" id="date"></div></div><div class="tag">V1</div></div><section class="screen on" data-s="home"><div class="card hero"><div class="brand">ФОКУС ДНЯ</div><div class="big" id="focusN">0/3</div><div class="muted">Закрыто главных дел. Три достаточно. Остальное любит притворяться важным.</div><div class="bar"><i id="focusBar"></i></div></div><div class="row"><input id="quick" class="inp" placeholder="Мысль, задача, обещание..."><button id="qadd" class="btn">В инбокс</button></div><div class="head"><b>Сегодня</b><button class="btn g" data-go="today">Открыть</button></div><div class="card" id="homeFocus"></div><div class="head"><b>Деньги месяца</b><button class="btn g" data-go="money">Открыть</button></div><div class="card"><div class="two"><div><div class="muted">Получено</div><div class="big" style="font-size:28px" id="fact">0 ₽</div></div><div style="text-align:right"><div class="muted">Цель</div><div class="big" style="font-size:28px" id="goal">300 000 ₽</div></div></div><div class="bar"><i id="moneyBar"></i></div><div class="kpis" style="margin-top:12px"><div class="k"><b id="pipe">0 ₽</b><span>в работе</span></div><div class="k"><b id="pc">0</b><span>проектов</span></div><div class="k"><b id="ic">0</b><span>инбокс</span></div></div></div><div class="head"><b>Главный вопрос</b></div><div class="card"><div class="quote">То, что я делаю сегодня, двигает меня к деньгам, имени или свободе?</div></div></section><section class="screen" data-s="today"><div class="head"><b>Три главных</b><button id="editFocus" class="btn">Изменить</button></div><div class="card" id="focus2"></div><div class="head"><b>Инбокс</b><span class="tag" id="ic2">0</span></div><div class="card" id="inbox"></div></section><section class="screen" data-s="projects"><div class="head"><b>Проекты</b><button id="addProject" class="btn">+ Проект</button></div><div class="card"><div class="muted">У каждого проекта должен быть один следующий конкретный шаг.</div><div id="projects"></div></div></section><section class="screen" data-s="money"><div class="head"><b>Деньги</b><button id="editMoney" class="btn">Настроить</button></div><div class="card"><div class="two"><div><div class="muted">Факт</div><div class="big" style="font-size:28px" id="fact2">0 ₽</div></div><div style="text-align:right"><div class="muted">Цель</div><div class="big" style="font-size:28px" id="goal2">300 000 ₽</div></div></div><div class="bar"><i id="moneyBar2"></i></div><div class="kpis" style="margin-top:12px"><div class="k"><b id="pipe2">0 ₽</b><span>в работе</span></div><div class="k"><b id="pot">0 ₽</b><span>потенциал</span></div><div class="k"><b id="gap">0 ₽</b><span>до цели</span></div></div></div><div class="head"><b>Сделки</b><button id="addDeal" class="btn s">+ Добавить</button></div><div class="card" id="deals"></div></section><section class="screen" data-s="more"><div class="head"><b>Люди и обещания</b><button id="addPerson" class="btn s">+ Добавить</button></div><div class="card" id="people"></div><div class="head"><b>Идеи / контент / офферы</b><button id="addIdea" class="btn s">+ Идея</button></div><div class="card" id="ideas"></div><div class="head"><b>Недельный разбор</b><button id="saveReview" class="btn s">Сохранить</button></div><div class="card"><div class="muted">Что принесло деньги?</div><textarea id="r1" class="area"></textarea><div class="muted" style="margin-top:10px">Что двинуло имя?</div><textarea id="r2" class="area"></textarea><div class="muted" style="margin-top:10px">Что сожрало время?</div><textarea id="r3" class="area"></textarea><div class="muted" style="margin-top:10px">Что прекращаю делать?</div><textarea id="r4" class="area"></textarea><div class="muted" style="margin-top:10px">Главный результат следующей недели</div><textarea id="r5" class="area"></textarea></div></section></div><button class="fab" id="fab">+</button><nav class="nav"><button class="on" data-n="home"><span>⌂</span>Главная</button><button data-n="today"><span>✓</span>Сегодня</button><button data-n="projects"><span>◫</span>Проекты</button><button data-n="money"><span>₽</span>Деньги</button><button data-n="more"><span>•••</span>Ещё</button></nav><div class="modalw" id="mw"><div class="modal" id="modal"></div></div><script>const K='valentin_os_live_v1',u=()=>Math.random().toString(36).slice(2,9),F=n=>new Intl.NumberFormat('ru-RU').format(Number(n)||0)+' ₽',E=s=>String(s??'').replace(/[&<>\"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#39;'}[m]));const D={focus:[{id:u(),t:'Действие №1, которое приносит деньги',d:0},{id:u(),t:'Действие №2, которое двигает главный проект',d:0},{id:u(),t:'Действие №3 для имени, системы или свободы',d:0}],inbox:[],projects:[{id:u(),n:'ЦИТО',s:'Активно',next:'Один конкретный коммерческий шаг',p:20},{id:u(),n:'КСБ-МОДУЛЬ',s:'Активно',next:'Главный шаг, который влияет на продажи',p:40},{id:u(),n:'Личный бренд',s:'Активно',next:'Один сильный выход в контент',p:15}],money:{goal:300000,fact:0},deals:[],people:[],ideas:[],review:['','','','','']};let S;try{S=JSON.parse(localStorage.getItem(K))||structuredClone(D)}catch{S=structuredClone(D)}const $=id=>document.getElementById(id),save=()=>{localStorage.setItem(K,JSON.stringify(S));render()},modal=h=>{$('modal').innerHTML=h;$('mw').classList.add('on')},close=()=>$('mw').classList.remove('on');$('mw').onclick=e=>{if(e.target.id==='mw')close()};document.querySelectorAll('[data-n]').forEach(b=>b.onclick=()=>go(b.dataset.n));document.querySelectorAll('[data-go]').forEach(b=>b.onclick=()=>go(b.dataset.go));function go(n){document.querySelectorAll('.screen').forEach(x=>x.classList.toggle('on',x.dataset.s===n));document.querySelectorAll('[data-n]').forEach(x=>x.classList.toggle('on',x.dataset.n===n));scrollTo(0,0)}function focusHtml(){return S.focus.map(x=>`<div class="task ${x.d?'done':''}"><button class="ck" onclick="tf('${x.id}')">${x.d?'✓':''}</button><div class="tt"><b>${E(x.t)}</b><small>Главный фокус</small></div></div>`).join('')}window.tf=id=>{let x=S.focus.find(a=>a.id===id);x.d=!x.d;save()};function render(){let done=S.focus.filter(x=>x.d).length;$('focusN').textContent=done+'/3';$('focusBar').style.width=done/3*100+'%';$('homeFocus').innerHTML=focusHtml();$('focus2').innerHTML=focusHtml();$('ic').textContent=S.inbox.length;$('ic2').textContent=S.inbox.length;$('inbox').innerHTML=S.inbox.length?S.inbox.map(x=>`<div class="task"><div class="tt"><b>${E(x.t)}</b><small>${E(x.c)}</small></div><button class="btn g" onclick="di('${x.id}')">×</button></div>`).join(''):'<div class="empty">Инбокс пуст. Редкий природный феномен.</div>';$('projects').innerHTML=S.projects.map(x=>`<div class="proj" onclick="ep('${x.id}')"><div class="ptop"><h3>${E(x.n)}</h3><span class="tag">${E(x.s)}</span></div><p><b>Следующий шаг:</b> ${E(x.next||'Не задан')}</p><div class="bar"><i style="width:${Math.max(0,Math.min(100,x.p||0))}%"></i></div></div>`).join('');let pipe=S.deals.filter(x=>x.s==='В работе').reduce((a,b)=>a+(+b.a||0),0),pot=S.deals.filter(x=>x.s==='Потенциал').reduce((a,b)=>a+(+b.a||0),0),fact=S.money.fact+S.deals.filter(x=>x.s==='Получено').reduce((a,b)=>a+(+b.a||0),0),mp=Math.min(100,fact/Math.max(1,S.money.goal)*100);['fact','fact2'].forEach(i=>$(i).textContent=F(fact));['goal','goal2'].forEach(i=>$(i).textContent=F(S.money.goal));['pipe','pipe2'].forEach(i=>$(i).textContent=F(pipe));$('pot').textContent=F(pot);$('gap').textContent=F(Math.max(0,S.money.goal-fact));$('moneyBar').style.width=$('moneyBar2').style.width=mp+'%';$('pc').textContent=S.projects.filter(x=>x.s==='Активно').length;$('deals').innerHTML=S.deals.length?S.deals.map(x=>`<div class="task"><div class="tt"><b>${E(x.n)} · ${F(x.a)}</b><small>${E(x.s)}</small></div><button class="btn g" onclick="dd('${x.id}')">×</button></div>`).join(''):'<div class="empty">Добавь реальные сделки. Фантазии бухгалтерия почему-то не принимает.</div>';$('people').innerHTML=S.people.length?S.people.map(x=>`<div class="task"><div class="tt"><b>${E(x.n)}</b><small>${E(x.t)}</small></div><button class="btn g" onclick="dp('${x.id}')">×</button></div>`).join(''):'<div class="empty">Обещаний нет. Пока подозрительно хорошо.</div>';$('ideas').innerHTML=S.ideas.length?S.ideas.map(x=>`<div class="task"><div class="tt"><b>${E(x.t)}</b><small>${E(x.type)}</small></div><button class="btn g" onclick="dx('${x.id}')">×</button></div>`).join(''):'<div class="empty">Идей пока нет.</div>';[1,2,3,4,5].forEach((n,i)=>$('r'+n).value=S.review[i]||'')}window.di=id=>{S.inbox=S.inbox.filter(x=>x.id!==id);save()};window.dd=id=>{S.deals=S.deals.filter(x=>x.id!==id);save()};window.dp=id=>{S.people=S.people.filter(x=>x.id!==id);save()};window.dx=id=>{S.ideas=S.ideas.filter(x=>x.id!==id);save()};$('qadd').onclick=()=>{let t=$('quick').value.trim();if(!t)return;S.inbox.unshift({id:u(),t,c:new Date().toLocaleString('ru-RU')});$('quick').value='';save()};$('quick').onkeydown=e=>{if(e.key==='Enter')$('qadd').click()};$('editFocus').onclick=()=>modal(`<h2>Три главных</h2>${S.focus.map((x,i)=>`<input id="f${i}" class="inp" style="margin:5px 0" value="${E(x.t)}">`).join('')}<div class="actions"><button class="btn" onclick="sf()">Сохранить</button></div>`);window.sf=()=>{S.focus=S.focus.map((x,i)=>({...x,t:$('f'+i).value.trim()||x.t,d:0}));close();save()};$('addProject').onclick=()=>modal('<h2>Новый проект</h2><input id="pn" class="inp" placeholder="Название"><textarea id="px" class="area" placeholder="Следующий шаг"></textarea><div class="actions"><button class="btn" onclick="ap()">Добавить</button></div>');window.ap=()=>{S.projects.unshift({id:u(),n:$('pn').value.trim()||'Новый проект',s:'Активно',next:$('px').value.trim(),p:0});close();save()};window.ep=id=>{let x=S.projects.find(a=>a.id===id);modal(`<h2>Проект</h2><input id="en" class="inp" value="${E(x.n)}"><textarea id="ex" class="area">${E(x.next)}</textarea><div class="two"><select id="es" class="sel"><option>Активно</option><option>Пауза</option><option>Готово</option></select><input id="epr" class="inp" type="number" min="0" max="100" value="${x.p||0}"></div><div class="actions"><button class="btn s" onclick="rp('${id}')">Удалить</button><button class="btn" onclick="sp('${id}')">Сохранить</button></div>`);$('es').value=x.s};window.sp=id=>{let x=S.projects.find(a=>a.id===id);x.n=$('en').value.trim();x.next=$('ex').value.trim();x.s=$('es').value;x.p=+$('epr').value||0;close();save()};window.rp=id=>{S.projects=S.projects.filter(x=>x.id!==id);close();save()};$('editMoney').onclick=()=>modal(`<h2>Деньги месяца</h2><div class="two"><input id="mg" class="inp" type="number" value="${S.money.goal}"><input id="mf" class="inp" type="number" value="${S.money.fact}"></div><div class="muted">Слева цель, справа факт вне сделок.</div><div class="actions"><button class="btn" onclick="sm()">Сохранить</button></div>`);window.sm=()=>{S.money.goal=+$('mg').value||0;S.money.fact=+$('mf').value||0;close();save()};$('addDeal').onclick=()=>modal('<h2>Сделка</h2><input id="dn" class="inp" placeholder="Клиент / источник"><div class="two"><input id="da" class="inp" type="number" placeholder="Сумма"><select id="ds" class="sel"><option>В работе</option><option>Потенциал</option><option>Получено</option></select></div><div class="actions"><button class="btn" onclick="ad()">Добавить</button></div>');window.ad=()=>{S.deals.unshift({id:u(),n:$('dn').value.trim()||'Без названия',a:+$('da').value||0,s:$('ds').value});close();save()};$('addPerson').onclick=()=>modal('<h2>Человек / обещание</h2><input id="nn" class="inp" placeholder="Кому"><textarea id="nt" class="area" placeholder="Что нужно / обещал"></textarea><div class="actions"><button class="btn" onclick="an()">Добавить</button></div>');window.an=()=>{S.people.unshift({id:u(),n:$('nn').value.trim()||'Не указано',t:$('nt').value.trim()});close();save()};$('addIdea').onclick=()=>modal('<h2>Идея</h2><textarea id="it" class="area" placeholder="Идея, контент, оффер, схема..."></textarea><select id="iy" class="sel"><option>Идея</option><option>Контент</option><option>Оффер</option><option>Бизнес</option><option>Личное</option></select><div class="actions"><button class="btn" onclick="ai()">Добавить</button></div>');window.ai=()=>{S.ideas.unshift({id:u(),t:$('it').value.trim()||'Без названия',type:$('iy').value});close();save()};$('saveReview').onclick=()=>{S.review=[1,2,3,4,5].map(n=>$('r'+n).value);save()};$('fab').onclick=()=>modal('<h2>Быстро добавить</h2><textarea id="ft" class="area" placeholder="Что сейчас в голове?"></textarea><div class="actions"><button class="btn s" onclick="fa(\'idea\')">Идея</button><button class="btn" onclick="fa(\'task\')">Задача</button></div>');window.fa=t=>{let v=$('ft').value.trim();if(!v)return;t==='idea'?S.ideas.unshift({id:u(),t:v,type:'Идея'}):S.inbox.unshift({id:u(),t:v,c:new Date().toLocaleString('ru-RU')});close();save()};let now=new Date(),h=now.getHours();$('hello').textContent=(h<6?'Не спишь, Валентин':h<12?'Доброе утро, Валентин':h<18?'Добрый день, Валентин':'Добрый вечер, Валентин');$('date').textContent=now.toLocaleDateString('ru-RU',{weekday:'long',day:'numeric',month:'long'});render();</script></body></html>
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+  <meta name="theme-color" content="#080b10">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="VALENTIN OS">
+  <meta name="description" content="Личный штаб Валентина: Эдриан, фокус, деньги, проекты, люди, идеи и голосовые заметки.">
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="icon" href="./icon.svg">
+  <link rel="apple-touch-icon" href="./icon.svg">
+  <link rel="stylesheet" href="./app.css?v=4">
+  <title>VALENTIN OS</title>
+</head>
+<body>
+  <div id="app" class="app-shell">
+    <header class="topbar">
+      <div>
+        <div class="brand">VALENTIN OS <span class="version">V4</span></div>
+        <h1 id="greeting">Твой штаб</h1>
+        <div id="dateLine" class="muted"></div>
+      </div>
+      <button id="privacyBtn" class="icon-btn" aria-label="Скрыть экран">◐</button>
+    </header>
+
+    <main>
+      <section class="screen active" data-screen="home">
+        <article class="card adrian-hero">
+          <div class="hero-top">
+            <div>
+              <div class="eyebrow">ЭДРИАН · БРИФИНГ</div>
+              <h2 id="briefTitle">Что важно прямо сейчас</h2>
+            </div>
+            <div class="adrian-dot">A</div>
+          </div>
+          <p id="briefText" class="brief-text"></p>
+          <div class="button-row">
+            <button id="speakBriefBtn" class="btn secondary">▶ Озвучить</button>
+            <button id="refreshBriefBtn" class="btn ghost">Обновить</button>
+          </div>
+        </article>
+
+        <div class="capture-grid">
+          <button id="voiceCommandBtn" class="capture-card"><span>🎙</span><b>Сказать</b><small>диктовка-команда</small></button>
+          <button id="voiceNoteBtn" class="capture-card"><span>●</span><b>Голосовая</b><small>записать заметку</small></button>
+          <button id="quickTaskBtn" class="capture-card"><span>＋</span><b>Добавить</b><small>задача / идея / человек</small></button>
+        </div>
+
+        <div class="section-head"><h2>Три главных</h2><button data-go="today" class="text-btn">Открыть</button></div>
+        <div id="homeFocus" class="card"></div>
+
+        <div class="section-head"><h2>Пульс</h2></div>
+        <div class="metrics-grid">
+          <div class="metric"><span>Получено</span><b id="metricFact">0 ₽</b></div>
+          <div class="metric"><span>В работе</span><b id="metricPipeline">0 ₽</b></div>
+          <div class="metric"><span>Инбокс</span><b id="metricInbox">0</b></div>
+          <div class="metric"><span>Обещания</span><b id="metricPeople">0</b></div>
+        </div>
+
+        <div class="section-head"><h2>Быстрый инбокс</h2></div>
+        <div class="quick-row">
+          <input id="quickInput" class="input" placeholder="Мысль, задача, обещание…">
+          <button id="quickAddBtn" class="btn">Добавить</button>
+        </div>
+      </section>
+
+      <section class="screen" data-screen="adrian">
+        <article class="card adrian-panel">
+          <div class="eyebrow">ЛОКАЛЬНЫЙ ЭДРИАН</div>
+          <h2>Командный центр</h2>
+          <p class="muted">Я здесь разбираю твои данные локально: приоритеты, сделки, обещания и перегруз. Никаких ключей и утечек.</p>
+          <div id="adrianChat" class="chat"></div>
+          <div class="command-row">
+            <input id="adrianInput" class="input" placeholder="Например: что главное? / сделка 120000 Амаяк">
+            <button id="adrianMicBtn" class="icon-btn mic">🎙</button>
+            <button id="adrianSendBtn" class="btn">Отправить</button>
+          </div>
+          <div class="chips">
+            <button data-cmd="Что главное?">Что главное?</button>
+            <button data-cmd="Что по деньгам?">Что по деньгам?</button>
+            <button data-cmd="Кому ответить?">Кому ответить?</button>
+            <button data-cmd="Разложи день">Разложи день</button>
+            <button data-cmd="Где затык?">Где затык?</button>
+          </div>
+        </article>
+
+        <div class="section-head"><h2>Журнал решений</h2><button id="addDecisionBtn" class="btn small">+ Решение</button></div>
+        <div id="decisionsList" class="card"></div>
+
+        <div class="section-head"><h2>Передать настоящему Эдриану</h2></div>
+        <article class="card">
+          <p class="muted">Приложение соберёт компактный бриф из твоего текущего состояния. Копируешь его и кидаешь мне в ChatGPT, когда нужен уже не алгоритм, а мозги.</p>
+          <div class="button-row">
+            <button id="copyContextBtn" class="btn">Скопировать бриф</button>
+            <a class="btn secondary link-btn" href="https://chatgpt.com/" target="_blank" rel="noopener">Открыть ChatGPT</a>
+          </div>
+        </article>
+      </section>
+
+      <section class="screen" data-screen="today">
+        <div class="section-head"><h2>Сегодня</h2><button id="editFocusBtn" class="btn small">Изменить 3 главных</button></div>
+        <div id="todayFocus" class="card"></div>
+
+        <div class="section-head"><h2>Инбокс</h2><span id="inboxBadge" class="pill">0</span></div>
+        <div id="inboxList" class="card"></div>
+      </section>
+
+      <section class="screen" data-screen="money">
+        <div class="section-head"><h2>Деньги</h2><button id="moneySettingsBtn" class="btn small">Настроить</button></div>
+        <article class="card money-card">
+          <div class="money-top"><div><span>Получено</span><b id="moneyFact">0 ₽</b></div><div class="right"><span>Цель</span><b id="moneyGoal">300 000 ₽</b></div></div>
+          <div class="progress"><i id="moneyProgress"></i></div>
+          <div class="metrics-grid three">
+            <div class="metric"><span>В работе</span><b id="moneyPipeline">0 ₽</b></div>
+            <div class="metric"><span>Потенциал</span><b id="moneyPotential">0 ₽</b></div>
+            <div class="metric"><span>До цели</span><b id="moneyGap">0 ₽</b></div>
+          </div>
+        </article>
+        <div class="section-head"><h2>Сделки</h2><button id="addDealBtn" class="btn small">+ Сделка</button></div>
+        <div id="dealsList" class="card"></div>
+      </section>
+
+      <section class="screen" data-screen="base">
+        <div class="base-tabs">
+          <button class="active" data-base="projects">Проекты</button>
+          <button data-base="people">Люди</button>
+          <button data-base="ideas">Идеи</button>
+          <button data-base="voice">Голос</button>
+          <button data-base="review">Неделя</button>
+          <button data-base="settings">Данные</button>
+        </div>
+
+        <div class="base-pane active" data-pane="projects">
+          <div class="section-head"><h2>Проекты</h2><button id="addProjectBtn" class="btn small">+ Проект</button></div>
+          <div id="projectsList" class="card"></div>
+        </div>
+
+        <div class="base-pane" data-pane="people">
+          <div class="section-head"><h2>Люди и обещания</h2><button id="addPersonBtn" class="btn small">+ Добавить</button></div>
+          <div id="peopleList" class="card"></div>
+        </div>
+
+        <div class="base-pane" data-pane="ideas">
+          <div class="section-head"><h2>Идеи / контент / офферы</h2><button id="addIdeaBtn" class="btn small">+ Идея</button></div>
+          <div id="ideasList" class="card"></div>
+        </div>
+
+        <div class="base-pane" data-pane="voice">
+          <div class="section-head"><h2>Голосовые заметки</h2><button id="recordVoiceBtn" class="btn small danger">● Записать</button></div>
+          <div id="voiceStatus" class="muted voice-status">Хранятся только на этом устройстве.</div>
+          <div id="voiceList" class="card"></div>
+        </div>
+
+        <div class="base-pane" data-pane="review">
+          <div class="section-head"><h2>Недельный разбор</h2><button id="saveReviewBtn" class="btn small">Сохранить</button></div>
+          <div class="card review-card">
+            <label>Что принесло деньги?</label><textarea id="reviewMoney" class="textarea"></textarea>
+            <label>Что двинуло имя?</label><textarea id="reviewName" class="textarea"></textarea>
+            <label>Что сожрало время?</label><textarea id="reviewWaste" class="textarea"></textarea>
+            <label>Что прекращаю делать?</label><textarea id="reviewStop" class="textarea"></textarea>
+            <label>Главный результат следующей недели</label><textarea id="reviewNext" class="textarea"></textarea>
+          </div>
+        </div>
+
+        <div class="base-pane" data-pane="settings">
+          <div class="section-head"><h2>Данные и приватность</h2></div>
+          <div class="card settings-card">
+            <button id="persistBtn" class="btn secondary full">Закрепить хранение на iPhone</button>
+            <button id="exportBtn" class="btn secondary full">Экспорт JSON</button>
+            <label class="btn secondary full file-label">Импорт JSON<input id="importInput" type="file" accept="application/json,.json" hidden></label>
+            <button id="installHelpBtn" class="btn ghost full">Как установить как приложение</button>
+            <button id="resetBtn" class="btn danger full">Сбросить всё</button>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <nav class="bottom-nav">
+    <button class="active" data-nav="home"><span>⌂</span>Главная</button>
+    <button data-nav="adrian"><span>A</span>Эдриан</button>
+    <button data-nav="today"><span>✓</span>Сегодня</button>
+    <button data-nav="money"><span>₽</span>Деньги</button>
+    <button data-nav="base"><span>•••</span>База</button>
+  </nav>
+
+  <div id="modalWrap" class="modal-wrap"><div id="modal" class="modal"></div></div>
+  <div id="toast" class="toast"></div>
+  <div id="privacyCover" class="privacy-cover"><div><b>VALENTIN OS</b><span>Экран скрыт</span></div></div>
+
+  <script src="./app.js?v=4" defer></script>
+</body>
+</html>
