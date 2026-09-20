@@ -1,0 +1,24 @@
+h(`<span>↻ ${t.repeat==='daily'?'ежедневно':t.repeat==='weekly'?'еженедельно':'ежемесячно'}</span>`);(t.tags||[]).slice(0,3).forEach(tag=>extra.push(`<span>#${esc(tag)}</span>`));return `<div class="task"><button class="check" onclick="finishInbox('${t.id}')"></button><div class="task-copy"><b>${esc(t.text)}</b>${t.details?`<small>${esc(t.details)}</small>`:''}${extra.length?`<div class="task-extra">${extra.join('')}</div>`:''}</div><div class="task-actions">${t.due?`<button class="mini" onclick="calendarTask('${t.id}')">↗</button>`:''}<button class="mini" onclick="moveInboxToFocus('${t.id}')">→3</button><button class="mini" onclick="editInbox('${t.id}')">⋯</button></div></div>`}).join(''):'<div class="empty">Инбокс пуст. Невероятно, но такое бывает.</div>'
+};
+const baseFinish=window.finishInbox;window.finishInbox=id=>{const t=state.inbox.find(x=>x.id===id);const rep=t?.repeat||'none',copy=t?JSON.parse(JSON.stringify(t)):null;baseFinish(id);if(copy&&rep!=='none'){let d=copy.due?new Date(copy.due+'T12:00:00'):new Date();if(rep==='daily')d.setDate(d.getDate()+1);if(rep==='weekly')d.setDate(d.getDate()+7);if(rep==='monthly')d.setMonth(d.getMonth()+1);copy.id=uid();copy.due=[d.getFullYear(),String(d.getMonth()+1).padStart(2,'0'),String(d.getDate()).padStart(2,'0')].join('-');copy.created=nowLabel();copy.createdDate=iso();copy.createdTs=nowTs();copy.updatedTs=nowTs();state.inbox.push(copy);save('Следующий повтор создан')}};
+
+// Global search and Adrian now see memory too
+const coreGlobalSearch=globalSearch;globalSearch=function(q){const base=coreGlobalSearch(q),n=q.toLowerCase().trim();if(!n)return base;memory.forEach(x=>{if([x.title,x.body,(x.tags||[]).join(' '),projectName(x.projectId),goalName(x.goalId)].join(' ').toLowerCase().includes(n))base.push({type:kindLabel[x.kind]||'Память',text:x.title+(x.body?' · '+x.body.slice(0,80):''),base:'memory'})});return base.slice(0,40)};
+const coreContext=contextBrief;contextBrief=function(){const active=memory.filter(x=>!x.archived);return coreContext()+`\n\nПАМЯТЬ:\nЦелей: ${active.filter(x=>x.kind==='goal').length}, заметок: ${active.filter(x=>x.kind==='note').length}.\n${active.filter(x=>x.pinned||x.kind==='goal').slice(0,8).map(x=>`- ${kindLabel[x.kind]}: ${x.title}${x.dueDate?' · '+x.dueDate:''}`).join('\n')||'- важных записей нет'}`};
+const coreAdrian=adrianAnswer;adrianAnswer=function(text){const q=text.trim(),l=q.toLowerCase();if(l.startsWith('заметка ')){const t=q.replace(/^заметка\s+/i,'').trim();memory.unshift(makeMemItem({kind:'note',title:t}));persistMemory();return `Сохранил заметку в Память: ${t}`};if(l.startsWith('цель ')){const t=q.replace(/^цель\s+/i,'').trim();memory.unshift(makeMemItem({kind:'goal',title:t,priority:'Высоко'}));persistMemory();return `Создал цель: ${t}`};if(/мои цели|что по целям/.test(l)){const goals=memory.filter(x=>x.kind==='goal'&&!x.archived);return goals.length?'Активные цели:\n'+goals.slice(0,8).map(x=>`• ${x.title} · ${x.progress||0}%${x.dueDate?' · до '+x.dueDate:''}`).join('\n'):'Активных целей пока нет.'}return coreAdrian(text)};
+
+// Replace old quick-add modal with smart capture
+const qOld=$('quickTaskBtn');if(qOld){const qNew=qOld.cloneNode(true);qOld.replaceWith(qNew);qNew.querySelector('small').textContent='заметка / задача / цель';qNew.addEventListener('click',()=>openSmartCapture('note'))}
+
+// Unified backup includes memory
+function replaceExportImport(){
+  const ex=$('exportBtn');if(ex){const n=ex.cloneNode(true);ex.replaceWith(n);n.addEventListener('click',()=>{const payload={version:6,exportedAt:new Date().toISOString(),state,memory};const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(payload,null,2)],{type:'application/json'}));a.download='VALENTIN-OS-V6-backup.json';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),4000);toast('Полный бэкап готов')})}
+  const imp=$('importInput');if(imp){const n=imp.cloneNode(true);imp.replaceWith(n);n.addEventListener('change',async e=>{try{const f=e.target.files[0];if(!f)return;const payload=JSON.parse(await f.text());state=migrate(payload.state||payload);if(Array.isArray(payload.memory))memory=payload.memory;localStorage.setItem(MEMORY_KEY,JSON.stringify(memory));save('Импортировано')}catch{toast('Не удалось импортировать файл')}})}
+}
+
+// Version + tab default
+injectMemoryUI();replaceExportImport();
+const ver=document.querySelector('.version');if(ver)ver.textContent='SMART · V6';
+const oldRender=render;render=function(){oldRender();renderMemory();renderHomeMemory()};
+render();
+})();
