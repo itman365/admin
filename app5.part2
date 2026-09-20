@@ -1,0 +1,61 @@
+th,
+    idea:items.filter(x=>!x.archived&&x.kind==='idea').length,
+    archive:items.filter(x=>x.archived).length+(state.history||[]).filter(x=>x.type==='task').length
+  }
+}
+function itemMatches(x){
+  const q=memQuery.trim().toLowerCase();if(!q)return true;
+  return [x.title,x.body,(x.tags||[]).join(' '),projectName(x.projectId),goalName(x.goalId)].join(' ').toLowerCase().includes(q)
+}
+function sortSmart(a,b){
+  if(Boolean(a.pinned)!==Boolean(b.pinned))return a.pinned?-1:1;
+  const pa=priWeight[a.priority]||0,pb=priWeight[b.priority]||0;if(pa!==pb)return pb-pa;
+  const ad=a.dueDate||'9999-99-99',bd=b.dueDate||'9999-99-99';if(ad!==bd)return ad.localeCompare(bd);
+  return (b.updatedTs||b.createdTs||0)-(a.updatedTs||a.createdTs||0)
+}
+function filteredSmartItems(){
+  const today=iso();let list=allSmartItems();
+  if(memView==='archive')list=list.filter(x=>x.archived);
+  else list=list.filter(x=>!x.archived);
+  if(memView==='today')list=list.filter(x=>x.dueDate===today);
+  if(memView==='important')list=list.filter(x=>x.pinned||['Высоко','Критично'].includes(x.priority));
+  if(['note','task','goal','idea'].includes(memView))list=list.filter(x=>x.kind===memView);
+  return list.filter(itemMatches).sort(sortSmart)
+}
+function memoryCard(x){
+  const today=iso(),over=x.dueDate&&x.dueDate<today&&!x.archived;
+  const meta=[];
+  if(x.priority&&x.priority!=='Обычно')meta.push(`<span class="${['Высоко','Критично'].includes(x.priority)?'hot':''}">${esc(x.priority)}</span>`);
+  if(x.dueDate)meta.push(`<span class="${x.dueDate===today?'today':over?'hot':''}">${esc(dateTimeText(x.dueDate,x.dueTime))}</span>`);
+  if(x.projectId&&projectName(x.projectId))meta.push(`<span>${esc(projectName(x.projectId))}</span>`);
+  if(x.goalId&&goalName(x.goalId))meta.push(`<span>◎ ${esc(goalName(x.goalId))}</span>`);
+  (x.tags||[]).slice(0,4).forEach(t=>meta.push(`<span>#${esc(t)}</span>`));
+  const actions=x.source==='memory'?`<button class="mini mem-pin" onclick="toggleMemPin('${x.id}')">${x.pinned?'★':'☆'}</button>${x.dueDate?`<button class="mini" onclick="calendarMemory('${x.id}')">↗</button>`:''}<button class="mini" onclick="editMemory('${x.id}')">⋯</button>`:x.source==='task'?`${x.dueDate?`<button class="mini" onclick="calendarTask('${x.id}')">↗</button>`:''}<button class="mini" onclick="editInbox('${x.id}')">⋯</button>`:`<button class="mini" onclick="editIdea('${x.id}')">⋯</button>`;
+  const goalProgress=x.kind==='goal'?`<div class="memory-goal-progress"><small class="muted">Прогресс ${Math.max(0,Math.min(100,+x.progress||0))}%</small><div class="progress"><i style="width:${Math.max(0,Math.min(100,+x.progress||0))}%"></i></div></div>`:'';
+  return `<div class="memory-card ${x.pinned?'pinned':''} ${x.archived?'archived':''} ${over?'overdue':''}"><div class="memory-card-top"><div class="memory-card-title"><span class="memory-kind ${x.kind}">${kindLabel[x.kind]||x.kind}</span><h3>${esc(x.title||'Без названия')}</h3>${x.body?`<p>${esc(x.body)}</p>`:''}</div><div class="memory-card-actions">${actions}</div></div>${meta.length?`<div class="mem-meta">${meta.join('')}</div>`:''}${goalProgress}</div>`
+}
+function renderMemory(){
+  if(!$('memoryList'))return;
+  const all=allSmartItems(),c=smartCounts(all);
+  const map={All:'all',Today:'today',Important:'important',Note:'note',Task:'task',Goal:'goal',Idea:'idea',Archive:'archive'};
+  Object.entries(map).forEach(([suffix,key])=>{const e=$('mc'+suffix);if(e)e.textContent=c[key]||0});
+  let list=filteredSmartItems();
+  if(memView==='archive'&&!memQuery){const hist=(state.history||[]).filter(x=>x.type==='task').slice().reverse().slice(0,20).map(x=>({id:x.id,kind:'task',title:x.text,body:'Выполнено · '+(x.created||''),priority:'Обычно',archived:true,source:'history',createdTs:0,updatedTs:0,tags:[]}));list=list.concat(hist)}
+  $('memoryList').innerHTML=list.length?list.map(memoryCard).join(''):`<div class="memory-empty">${memQuery?'Ничего не нашёл.':'Здесь пока пусто. Создай запись, и OS больше не будет делать вид, что помнит её телепатически.'}</div>`;
+  const hints={all:'Последние и важные записи сверху.',today:'Всё, что привязано к сегодняшней дате.',important:'Закреплённое и высокий приоритет.',note:'Знания, мысли и записи. Их не надо выполнять.',task:'То, что требует действия.',goal:'Результаты, к которым ты двигаешься.',idea:'Идеи из общей системы.',archive:'То, что не нужно видеть каждый день, но нельзя терять.'};$('memoryHint').textContent=hints[memView]||'';
+}
+function renderHomeMemory(){
+  const el=$('homeMemoryList');if(!el)return;
+  const list=memory.filter(x=>!x.archived).sort(sortSmart).slice(0,3);
+  el.innerHTML=list.length?list.map(x=>`<div class="memory-home-item"><span class="mem-dot"></span><div><b>${esc(x.title||'Без названия')}</b><small>${kindLabel[x.kind]||'Запись'}${x.dueDate?' · '+esc(dateTimeText(x.dueDate,x.dueTime)):''}${x.tags?.length?' · #'+esc(x.tags[0]):''}</small></div></div>`).join(''):`<div class="empty">Память пустая. Пока мозг снова работает единственным сервером.</div>`
+}
+
+function optionsProjects(selected=''){return `<option value="">Без проекта</option>`+state.projects.filter(p=>p.status==='Активно').map(p=>`<option value="${p.id}" ${p.id===selected?'selected':''}>${esc(p.name)}</option>`).join('')}
+function optionsGoals(selected=''){return `<option value="">Без цели</option>`+memory.filter(x=>x.kind==='goal'&&!x.archived).map(g=>`<option value="${g.id}" ${g.id===selected?'selected':''}>${esc(g.title)}</option>`).join('')}
+function openSmartCapture(kind='note',data=null){
+  const x=data||makeMemItem({kind});
+  modal(`<div class="eyebrow">УМНАЯ ЗАПИСЬ</div><h2>${data?'Редактировать':'Добавить'}</h2><div class="capture-form">
+    <label class="field-label">Тип</label><select id="smKind" class="select"><option value="note">Заметка</option><option value="task">Задача</option><option value="goal">Цель</option><option value="idea">Идея</option></select>
+    <label class="field-label">Заголовок</label><input id="smTitle" class="input" value="${esc(x.title||'')}" placeholder="Коротко: что это?">
+    <label class="field-label">Подробности</label><textarea id="smBody" class="textarea" placeholder="Контекст, детали, мысли…">${esc(x.body||'')}</textarea>
+    <div class="modal-grid"><div><label class="field-label">Приоритет</label><select id="smPriority" class="select"><option>Низко</option><option>Обычно</option><option>Высоко</option><option>Критично</option></select></div><div><label class="field-label">Проект</label><select id="smProject" class="s
