@@ -1,0 +1,29 @@
+ const home=document.querySelector('[data-screen="home"]');const hero=home?.querySelector('.adrian-hero');if(hero&&!document.getElementById('jarvisPanel')){
+  const wrap=document.createElement('div');wrap.id='jarvisPanel';wrap.className='jarvis-panel';
+  wrap.innerHTML=`<div class="jarvis-head"><div><div class="eyebrow">JARVIS · КОНТЕКСТНЫЙ МОЗГ</div><h2>Ситуация вокруг тебя</h2><p id="jarvisWeather" class="muted"></p></div><button id="jarvisRefresh" class="icon-btn" aria-label="Обновить контекст">↻</button></div><div id="jarvisAttention" class="jarvis-attention"></div><div class="jarvis-foot"><button id="jarvisOpenBtn" class="btn small secondary">Открыть JARVIS</button><button id="jarvisNotifyBtn" class="btn small ghost">Сигналы</button></div>`;
+  hero.insertAdjacentElement('afterend',wrap);
+  wrap.querySelector('#jarvisRefresh').addEventListener('click',()=>refreshContext(true));
+  wrap.querySelector('#jarvisOpenBtn').addEventListener('click',()=>openJarvis());
+  wrap.querySelector('#jarvisNotifyBtn').addEventListener('click',requestSignals);
+ }
+ const tabs=document.querySelector('.base-tabs');if(tabs&&!document.querySelector('[data-base="jarvis"]')){
+  const b=document.createElement('button');b.dataset.base='jarvis';b.textContent='JARVIS';tabs.prepend(b);
+  const base=document.querySelector('[data-screen="base"]');const pane=document.createElement('div');pane.className='base-pane';pane.dataset.pane='jarvis';
+  pane.innerHTML=`<div class="jarvis-full"><article class="card jarvis-core-card"><div class="eyebrow">JARVIS CORE</div><h2>Приоритеты меняются вместе с реальностью</h2><p class="muted">Сроки, последствия, деньги и погода в Анапе пересчитываются автоматически.</p><div id="jarvisFullWeather" class="jarvis-weather-card"></div><div class="button-row"><button id="jarvisForceRefresh" class="btn">Обновить контекст</button><button id="jarvisCalendar" class="btn secondary">Коммуналка → Календарь</button></div></article><div class="section-head"><h2>На что смотреть первым</h2><span id="jarvisCount" class="pill">0</span></div><div id="jarvisFullAttention" class="jarvis-full-attention"></div><div class="section-head"><h2>Правила</h2></div><div class="card jarvis-rules"><label class="toggle-row"><span><b>Автоприоритет</b><small>JARVIS сам поднимает важность по контексту.</small></span><input id="jarvisAutoPriority" type="checkbox"></label><label class="setting-row"><span>Город</span><b>Анапа</b></label><label class="setting-row"><span>Горизонт дождя</span><select id="jarvisRainDays" class="select compact"><option value="3">3 дня</option><option value="7">7 дней</option><option value="10">10 дней</option></select></label><label class="setting-row"><span>Коммуналка до</span><select id="jarvisUtilityDay" class="select compact">${Array.from({length:28},(_,i)=>`<option value="${i+1}">${i+1}-го</option>`).join('')}</select></label><p class="muted jarvis-tech-note">Фоновый Web Push подготовлен архитектурно, но для уведомлений при полностью закрытом приложении нужен сервер. Календарные напоминания работают без него.</p></div></div>`;
+  base.insertBefore(pane,base.querySelector('.base-pane'));
+  b.addEventListener('click',openJarvis);
+  pane.querySelector('#jarvisForceRefresh').addEventListener('click',()=>refreshContext(true));pane.querySelector('#jarvisCalendar').addEventListener('click',downloadUtilitiesCalendar);
+  pane.querySelector('#jarvisAutoPriority').addEventListener('change',e=>{J.rules.autoPriority=e.target.checked;persistJ();recalcAll()});
+  pane.querySelector('#jarvisRainDays').addEventListener('change',e=>{J.rules.rainLookahead=+e.target.value;persistJ();recalcAll()});
+  pane.querySelector('#jarvisUtilityDay').addEventListener('change',e=>{J.rules.utilitiesDay=+e.target.value;persistJ();syncUtilityDue();recalcAll()});
+ }
+ const adrianPanel=document.querySelector('[data-screen="adrian"] .chips');if(adrianPanel&&!adrianPanel.querySelector('[data-cmd="Что срочно?"]')){
+  for(const q of ['Что срочно?','Что изменилось?','Погода и задачи']){const b=document.createElement('button');b.dataset.cmd=q;b.textContent=q;b.addEventListener('click',()=>runCommand(q));adrianPanel.prepend(b)}
+ }
+}
+function openJarvis(){if(typeof openBase==='function')openBase('jarvis');renderJarvis()}
+function renderJarvis(){
+ const w=weatherSummary(),top=topAttention(5);const weather=document.getElementById('jarvisWeather');if(weather)weather.textContent=`${J.location.name} · ${w}`;
+ const compact=document.getElementById('jarvisAttention');if(compact)compact.innerHTML=top.length?top.slice(0,3).map(x=>`<button class="jarvis-row" data-jid="${escJ(x.id)}" data-jsource="${x.source}"><span class="jarvis-priority ${x.priority}">${escJ(x.priority)}</span><span><b>${escJ(x.title)}</b><small>${escJ(reasonText(x))}</small></span></button>`).join(''):'<div class="empty">Нет активных сигналов.</div>';
+ const fw=document.getElementById('jarvisFullWeather');if(fw){const r=earliestRain(10);fw.innerHTML=`<div><b>${escJ(J.location.name)}</b><span>${escJ(w)}</span></div>${r?`<small>Ближайший риск осадков: ${escJ(fmtDate(r.date))}, вероятность ${r.prob}%, ${r.mm.toFixed(1)} мм.</small>`:'<small>На ближайшем горизонте погодного риска для наружных работ не вижу.</small>'}`}
+ const full=document.getElementById('jarvisFullAttention');if(full)full.innerHTML=top.length?top.map((x,i)=>`<article class="card jarvis-detail"><div class="jarvis-detail-top"><span class="jarvis-rank">${i+1}</span><div><span class="jarvis-priority ${x.priority}">${escJ(x.priority)} · 
