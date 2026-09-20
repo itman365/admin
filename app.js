@@ -1,5 +1,5 @@
 (async()=>{
-  const build='jarvis-v7-20260920-fix3';
+  const build='jarvis-v7-20260920-safe1';
   for(const href of ['./final.css','./smart.css','./jarvis.css']){
     const link=document.createElement('link');
     link.rel='stylesheet';
@@ -12,7 +12,7 @@
   const theme=document.querySelector('meta[name="theme-color"]');
   if(theme) theme.setAttribute('content','#07090d');
 
-  for(const src of ['./app1.js','./app2.js','./app3.js','./app4.js','./app5.js','./app6.js','./app7.js']){
+  for(const src of ['./app1.js','./app2.js','./app3.js','./app4.js','./app5.js','./app6.js','./app7.js','./app8.js']){
     await new Promise((resolve,reject)=>{
       const s=document.createElement('script');
       s.src=`${src}?v=${build}`;
