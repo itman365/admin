@@ -1,0 +1,76 @@
+(()=>{
+const MEMORY_KEY='valentin_os_memory_v1';
+let memory=[];
+try{memory=JSON.parse(localStorage.getItem(MEMORY_KEY)||'[]');if(!Array.isArray(memory))memory=[]}catch{memory=[]}
+let memView='all',memQuery='';
+const kindLabel={note:'Заметка',goal:'Цель',task:'Задача',idea:'Идея',decision:'Решение'};
+const priWeight={Критично:4,Высоко:3,Обычно:2,Низко:1};
+const dateTimeText=(d,t)=>d?(d+(t?' · '+t:'')):'';
+const tagsText=v=>Array.isArray(v)?v.join(', '):String(v||'').split(',').map(x=>x.trim()).filter(Boolean).join(', ');
+const parseTags=v=>String(v||'').split(',').map(x=>x.trim()).filter(Boolean).slice(0,12);
+function persistMemory(msg){localStorage.setItem(MEMORY_KEY,JSON.stringify(memory));renderMemory();renderHomeMemory();if(msg)toast(msg)}
+function projectName(id){return state.projects.find(p=>p.id===id)?.name||''}
+function goalName(id){return memory.find(x=>x.id===id&&x.kind==='goal')?.title||''}
+function nowTs(){return Date.now()}
+function makeMemItem(data={}){return {id:data.id||uid(),kind:data.kind||'note',title:data.title||'',body:data.body||'',priority:data.priority||'Обычно',dueDate:data.dueDate||'',dueTime:data.dueTime||'',tags:Array.isArray(data.tags)?data.tags:parseTags(data.tags),projectId:data.projectId||'',goalId:data.goalId||'',pinned:Boolean(data.pinned),archived:Boolean(data.archived),status:data.status||'Активно',progress:Number(data.progress)||0,createdTs:data.createdTs||nowTs(),updatedTs:nowTs()}}
+
+function injectMemoryUI(){
+  const tabs=document.querySelector('.base-tabs');
+  if(!tabs||document.querySelector('[data-base="memory"]'))return;
+  const b=document.createElement('button');b.dataset.base='memory';b.textContent='Память';tabs.prepend(b);
+  const base=document.querySelector('[data-screen="base"]');
+  const pane=document.createElement('div');pane.className='base-pane';pane.dataset.pane='memory';
+  pane.innerHTML=`<div class="memory-shell">
+    <article class="card memory-hero">
+      <div class="eyebrow">ПАМЯТЬ · SMART</div><h2>Всё, что нельзя потерять</h2>
+      <p class="muted">Заметки, задачи, цели и идеи. Один вход, потом OS сама раскладывает по умным видам.</p>
+      <div class="memory-search-row"><input id="memorySearch" class="input" placeholder="Найти в памяти…"><button id="memoryAddBtn" class="btn">+ Запись</button></div>
+      <div class="memory-quick-grid"><button data-smart-add="note"><b>✎</b>Заметка</button><button data-smart-add="task"><b>✓</b>Задача</button><button data-smart-add="goal"><b>◎</b>Цель</button></div>
+    </article>
+    <div class="smart-views" id="memoryViews">
+      <button class="active" data-mview="all">Все <span id="mcAll">0</span></button>
+      <button data-mview="today">Сегодня <span id="mcToday">0</span></button>
+      <button data-mview="important">Важное <span id="mcImportant">0</span></button>
+      <button data-mview="note">Заметки <span id="mcNote">0</span></button>
+      <button data-mview="task">Задачи <span id="mcTask">0</span></button>
+      <button data-mview="goal">Цели <span id="mcGoal">0</span></button>
+      <button data-mview="idea">Идеи <span id="mcIdea">0</span></button>
+      <button data-mview="archive">Архив <span id="mcArchive">0</span></button>
+    </div>
+    <p class="mem-section-note" id="memoryHint">Последние и важные записи сверху.</p>
+    <div id="memoryList" class="memory-list"></div>
+  </div>`;
+  const firstPane=base.querySelector('.base-pane');base.insertBefore(pane,firstPane);
+  b.addEventListener('click',()=>{openMemory();});
+  pane.addEventListener('click',e=>{const v=e.target.closest('[data-mview]');if(v){memView=v.dataset.mview;document.querySelectorAll('[data-mview]').forEach(x=>x.classList.toggle('active',x===v));renderMemory();return}const a=e.target.closest('[data-smart-add]');if(a)openSmartCapture(a.dataset.smartAdd)});
+  pane.addEventListener('input',e=>{if(e.target.id==='memorySearch'){memQuery=e.target.value;renderMemory()}});
+  pane.querySelector('#memoryAddBtn').addEventListener('click',()=>openSmartCapture('note'));
+  document.querySelectorAll('[data-base]').forEach(x=>x.classList.remove('active'));
+  document.querySelectorAll('[data-pane]').forEach(x=>x.classList.remove('active'));
+  b.classList.add('active');pane.classList.add('active');
+
+  const home=document.querySelector('[data-screen="home"]');
+  const quick=home?.querySelector('.quick-row');
+  if(quick&&!document.getElementById('homeMemory')){
+    const wrap=document.createElement('div');wrap.id='homeMemory';wrap.className='memory-home';
+    wrap.innerHTML=`<div class="section-head"><h2>Память</h2><button id="homeMemoryOpen" class="text-btn">Открыть</button></div><div class="card"><div class="memory-home-head"><div><div class="eyebrow">ПОСЛЕДНЕЕ</div><div class="muted">Заметки и цели не исчезают в инбоксе.</div></div><button id="homeMemoryAdd" class="btn small">+ Запись</button></div><div id="homeMemoryList" class="memory-home-list"></div></div>`;
+    quick.insertAdjacentElement('afterend',wrap);
+    $('homeMemoryOpen').addEventListener('click',openMemory);$('homeMemoryAdd').addEventListener('click',()=>openSmartCapture('note'));
+  }
+}
+function openMemory(){openBase('memory');renderMemory();setTimeout(()=>$('memorySearch')?.focus(),100)}
+
+function allSmartItems(){
+  const own=memory.map(x=>({...x,source:'memory',text:x.title,details:x.body}));
+  const tasks=state.inbox.map(x=>({id:x.id,kind:'task',title:x.text,body:x.details||'',priority:x.priority||'Обычно',dueDate:x.due||'',dueTime:x.dueTime||'',tags:x.tags||[],projectId:x.projectId||'',goalId:x.goalId||'',pinned:Boolean(x.pinned),archived:false,status:'Активно',repeat:x.repeat||'none',createdTs:x.createdTs||0,updatedTs:x.updatedTs||0,source:'task'}));
+  const ideas=state.ideas.map(x=>({id:x.id,kind:'idea',title:x.text,body:'',priority:x.priority||'Обычно',dueDate:'',dueTime:'',tags:x.tags||[],projectId:x.projectId||'',goalId:'',pinned:Boolean(x.pinned),archived:x.status==='Архив',status:x.status||'Новая',createdTs:x.createdTs||0,updatedTs:x.updatedTs||0,source:'idea'}));
+  return own.concat(tasks,ideas);
+}
+function smartCounts(items){
+  const today=iso();return {
+    all:items.filter(x=>!x.archived).length,
+    today:items.filter(x=>!x.archived&&x.dueDate===today).length,
+    important:items.filter(x=>!x.archived&&(x.pinned||['Высоко','Критично'].includes(x.priority))).length,
+    note:items.filter(x=>!x.archived&&x.kind==='note').length,
+    task:items.filter(x=>!x.archived&&x.kind==='task').length,
+    goal:items.filter(x=>!x.archived&&x.kind==='goal').leng
