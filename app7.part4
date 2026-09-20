@@ -11,7 +11,14 @@ function decorateSmartCards(){
 
 function installCaptureIntelligence(){
  const originalOpen=window.openSmartCapture;if(typeof originalOpen==='function')window.openSmartCapture=function(kind='note',data=null){originalOpen(kind,data);setTimeout(()=>attachSmartForm(data),0)};
- const originalSave=window.saveSmartCapture;if(typeof originalSave==='function')window.saveSmartCapture=function(source,id){smartFillFormBeforeSave(source,id);return originalSave(source,id)};
+ const originalSave=window.saveSmartCapture;if(typeof originalSave==='function')window.saveSmartCapture=function(source,id){
+  const pri=document.getElementById('smPriority'),kind=document.getElementById('smKind')?.value||'',title=document.getElementById('smTitle')?.value?.trim()||'';
+  const touched=pri?.dataset.userTouched==='1',selected=pri?.value||'Обычно';
+  const before=(source==='new'&&kind==='task'&&typeof state!=='undefined')?new Set(state.inbox.map(x=>x.id)):null;
+  smartFillFormBeforeSave(source,id);const r=originalSave(source,id);
+  if(before&&touched){const t=state.inbox.find(x=>!before.has(x.id))||state.inbox.find(x=>x.text===title);if(t){t.priority=selected;const m=taskMeta(t.id);m.manualOverride=true;m.autoManaged=false;const inf=inferPriority(t,{meta:m});Object.assign(m,{score:inf.score,priority:inf.priority,reasons:inf.reasons,tags:inf.tags,lastAt:Date.now()});persistJ();try{save()}catch{}}}
+  return r
+ };
 }
 function attachSmartForm(data){
  const title=document.getElementById('smTitle'),body=document.getElementById('smBody'),pri=document.getElementById('smPriority');if(!title||!pri)return;
