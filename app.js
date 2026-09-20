@@ -1,5 +1,5 @@
 (async()=>{
-  const build='jarvis-v7-20260920';
+  const build='jarvis-v7-20260920-fix1';
   for(const href of ['./final.css','./smart.css','./jarvis.css']){
     const link=document.createElement('link');
     link.rel='stylesheet';
@@ -21,6 +21,7 @@
       s.onerror=reject;
       document.body.appendChild(s);
     });
+    if(src==='./app5.js') await window.valentinMemoryReady;
   }
 })().catch(e=>{
   console.error('VALENTIN OS boot error',e);

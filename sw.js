@@ -1,5 +1,5 @@
-const CACHE='valentin-os-jarvis-v7-20260920';
-const BUILD='jarvis-v7-20260920';
+const CACHE='valentin-os-jarvis-v7-20260920-fix1';
+const BUILD='jarvis-v7-20260920-fix1';
 const ASSETS=[
   './','./index.html','./app.css?v=5',
   `./final.css?v=${BUILD}`,`./smart.css?v=${BUILD}`,`./jarvis.css?v=${BUILD}`,

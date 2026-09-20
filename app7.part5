@@ -34,7 +34,17 @@ function priorityAdvisoryOnForeground(){recalcAll({notify:true});const top=topAt
 async function refreshContext(force=false){await fetchWeather({force});recalcAll({notify:true});renderJarvis();toast(J.weather.error?'JARVIS: погода недоступна':'Контекст обновлён')}
 
 function patchScore(){if(typeof scoreTask!=='function')return;const old=scoreTask;scoreTask=function(t){const m=taskMeta(t.id);return Math.max(old(t),m.score||0)}}
-function installObservers(){const obs=new MutationObserver(()=>{if(document.getElementById('smTitle')&&!document.getElementById('jarvisSuggestion'))attachSmartForm(null);decorateSmartCards();renderJarvis()});obs.observe(document.body,{childList:true,subtree:true});document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')refreshContext(false)});window.addEventListener('focus',()=>refreshContext(false))}
+function installObservers(){
+ const options={childList:true,subtree:true};
+ const obs=new MutationObserver(()=>{
+  // Do not observe our own DOM writes: they otherwise trigger an endless microtask loop.
+  obs.disconnect();
+  try{if(document.getElementById('smTitle')&&!document.getElementById('jarvisSuggestion'))attachSmartForm(null);decorateSmartCards();renderJarvis()}
+  finally{obs.observe(document.body,options)}
+ });
+ obs.observe(document.body,options);
+ document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')refreshContext(false)});window.addEventListener('focus',()=>refreshContext(false))
+}
 
 async function bootJarvis(){
  injectJarvisUI();installCaptureIntelligence();installAdrianIntelligence();patchScore();ensureUtilityTask();await fetchWeather({force:false});recalcAll();renderJarvis();installObservers();maybeAlert();
