@@ -1,5 +1,5 @@
 (async()=>{
-  const build='jarvis-v7-20260920-fix1';
+  const build='jarvis-v7-20260920-fix2';
   for(const href of ['./final.css','./smart.css','./jarvis.css']){
     const link=document.createElement('link');
     link.rel='stylesheet';

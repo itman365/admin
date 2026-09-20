@@ -1,9 +1,9 @@
-const CACHE='valentin-os-jarvis-v7-20260920-fix1';
-const BUILD='jarvis-v7-20260920-fix1';
+const CACHE='valentin-os-jarvis-v7-20260920-fix2';
+const BUILD='jarvis-v7-20260920-fix2';
 const ASSETS=[
   './','./index.html','./app.css?v=5',
   `./final.css?v=${BUILD}`,`./smart.css?v=${BUILD}`,`./jarvis.css?v=${BUILD}`,
-  './app.js?v=5',
+  './app.js?v=jarvis-v7-20260920-fix2',
   `./app1.js?v=${BUILD}`,`./app2.js?v=${BUILD}`,`./app3.js?v=${BUILD}`,`./app4.js?v=${BUILD}`,`./app5.js?v=${BUILD}`,`./app6.js?v=${BUILD}`,`./app7.js?v=${BUILD}`,
   './app5.part1?v=6','./app5.part2?v=6','./app5.part3?v=6','./app5.part4?v=6',
   './app7.part1?v=7','./app7.part2?v=7','./app7.part3?v=7','./app7.part4?v=7','./app7.part5?v=7',
