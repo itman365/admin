@@ -1,5 +1,5 @@
-const CACHE='valentin-os-smart-v6-20260920';
-const BUILD='smart-v6-20260920';
+const CACHE='valentin-os-smart-v6-20260920b';
+const BUILD='smart-v6-20260920b';
 const ASSETS=[
   './',
   './index.html',
@@ -12,6 +12,7 @@ const ASSETS=[
   `./app3.js?v=${BUILD}`,
   `./app4.js?v=${BUILD}`,
   `./app5.js?v=${BUILD}`,
+  `./app6.js?v=${BUILD}`,
   './app5.part1?v=6','./app5.part2?v=6','./app5.part3?v=6','./app5.part4?v=6',
   './manifest.webmanifest',
   './icon.svg'
