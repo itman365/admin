@@ -95,12 +95,17 @@ export async function handleAgent(env,ownerId,chatId,text,{say,telegram}) {
   } else if(!plan) plan=await extractPlan(env,text);
 
   if(!plan){
-    // A known reminder must never fall into the chat model, which cannot execute tools.
-    if(/напомни|напоминани|поставь.*задач|удали.*задач|перенеси.*задач/i.test(text)){
-      await send("Я понял, что это поручение, но не смог надёжно разобрать его. Ничего не менял. Повтори коротко с датой и временем.");
+    // Preserve tested deterministic creation when Workers AI JSON is unavailable.
+    // The old handler is already responsible for /task and explicit "поставь задачу".
+    if(/^\/task(?:@\w+)?\b/i.test(text) ||
+       /(?:задача\s*[:—-]|(?:поставь|создай|добавь|запиши|внеси)\b[^.!?]{0,90}\bзадачу)/i.test(text)) {
+      return false;
+    }
+    if(/напомни|напоминани|перенеси.*задач|удали.*задач/i.test(text)){
+      await send("Не смог надёжно разобрать поручение. Задача НЕ создана и ничего не изменено. Повтори коротко с датой и временем.");
       return true;
     }
-    return false; // Legacy /task and simple task commands are handled by index.js.
+    return false;
   }
   if(plan.ambiguous||plan.operation==="unknown"){
     await send("Ничего не менял: "+compact(plan.reason||"не уверен в деталях поручения")+
