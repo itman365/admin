@@ -12,7 +12,7 @@ OWNER_TELEGRAM_ID = "751924427"
 # A KV namespace created in Cloudflare dashboard for chat context.
 [[kv_namespaces]]
 binding = "HISTORY"
-id = "e95882190e72499fa9a0b15fc502d731"
+id = "c95882190e72499fa9a0b15fc502d731"
 
 # Keep TELEGRAM_BOT_TOKEN and TELEGRAM_WEBHOOK_SECRET only as Cloudflare
 # runtime Secrets; NEVER copy them into this file.
