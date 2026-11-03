@@ -16,7 +16,7 @@ test("spoken reminder creates verified Todoist task and push", async () => {
  };
  try {
   const pending=[];
-  const env={TELEGRAM_BOT_TOKEN:"TEST",TELEGRAM_WEBHOOK_SECRET:"TEST_SECRET",OWNER_TELEGRAM_ID:"123",TODOIST_API_TOKEN:"TEST_TODOIST",TODOIST_PROJECT_ID:"PROJECT",AI:{run:async model=>model.includes("whisper")?{text:"Андрей, напомни, сегодня в 12.30 днём по Москве, чтобы я оплатил платные дороги."}:{response:"CHAT RESPONSE"} }};
+  const env={TELEGRAM_BOT_TOKEN:"TEST",TELEGRAM_WEBHOOK_SECRET:"TEST_SECRET",OWNER_TELEGRAM_ID:"123",TODOIST_API_TOKEN:"TEST_TODOIST",TODOIST_PROJECT_ID:"PROJECT",AI:{run:async model=>model.includes("whisper")?{text:"Андрей, напомни, сегодня в 12.30 днём по Москве, чтобы я оплатил платные дороги."}:{response:JSON.stringify({operation:"create",title:"Оплатить платные дороги",target:"",date:"2026-11-04",time:"12:30",remind:true,priority:4,ambiguous:false})} }};
   const req=new Request("https://worker.example/webhook",{method:"POST",headers:{"x-telegram-bot-api-secret-token":"TEST_SECRET"},body:JSON.stringify({update_id:9091,message:{from:{id:123},chat:{id:123,type:"private"},voice:{file_id:"VOICE",file_size:4}}})});
   const response=await worker.fetch(req,env,{waitUntil:p=>pending.push(p)});
   assert.equal(response.status,200);
