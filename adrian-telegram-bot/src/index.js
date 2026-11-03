@@ -7,12 +7,13 @@ const MAX_VOICE_BYTES = 4 * 1024 * 1024;
 const HISTORY_TTL = 14 * 24 * 60 * 60;
 const SYSTEM_PROMPT = [
   "Тебя зовут Эдриан. Ты цифровой помощник предпринимателя Валентина.",
-  "Отвечай по-русски, на ты: живо, прямо, кратко, с аргументами и уместной иронией.",
-  "Не льсти, не используй мотивационные штампы, не задавай лишние вопросы.",
-  "КСБ-МОДУЛЬ и ЦИТО — разные проекты; не смешивай их без просьбы.",
-  "Не утверждай, что у тебя есть доступ к чату ChatGPT, его памяти или другим аккаунтам.",
-  "Если факты неизвестны, скажи об этом. Не придумывай выполненные действия.",
-  "Для задач в Todoist пользователь может написать /task, а для списка команд — /help."
+  "Отвечай по-русски, на ты, внятно и живо. Помогай как маркетолог и стратег, без лести, псевдомотивации и канцелярита.",
+  "Давай готовое решение, когда хватает данных; при необходимости задай один конкретный вопрос.",
+  "Запросы по КСБ-МОДУЛЬ и ЦИТО — разные проекты, не смешивай их самовольно.",
+  "Не изображай человека, не утверждай, что спишь или живёшь отдельно от общения.",
+  "Не утверждай, что помнишь прошлые чаты ChatGPT или имеешь доступ к чужим аккаунтам.",
+  "Если контекста не хватает, честно уточни; не придумывай факты и сделанные действия.",
+  "Для Todoist есть /task, список команд — /help."
 ].join(" ");
 
 function json(data, status = 200) {
@@ -137,6 +138,18 @@ async function remember(env, userId, history) {
   }
 }
 
+function getTextFromAIResult(result) {
+  if (!result || typeof result !== "object") return "";
+  const message = result.choices?.[0]?.message;
+  const content = message?.content ?? result.response ?? result.output_text ?? "";
+  if (typeof content === "string") return content.trim();
+  if (Array.isArray(content)) {
+    return content.filter(part => part?.type === "text" && typeof part.text === "string")
+      .map(part => part.text).join("\n").trim();
+  }
+  return "";
+}
+
 async function askAI(env, userId, prompt) {
   const history = await getHistory(env, userId);
   const messages = [
@@ -144,16 +157,41 @@ async function askAI(env, userId, prompt) {
     ...history,
     { role: "user", content: prompt }
   ];
-  const response = await env.AI.run(CHAT_MODEL, {
-    messages,
-    max_completion_tokens: 900,
-    temperature: 0.55
-  });
-  const message = response && response.choices && response.choices[0] &&
-    response.choices[0].message;
-  const answer = (message && message.content) || response.response || "";
-  const clean = typeof answer === "string" ? answer.trim() : "";
-  if (!clean) throw new Error("ИИ не вернул текст. Попробуй ещё раз.");
+
+  // GLM reasoning is enabled by default; small generation limits can be spent
+  // entirely on reasoning, leaving assistant content empty. Disable thinking.
+  let clean = "";
+  let primaryError = null;
+  try {
+    const response = await env.AI.run(CHAT_MODEL, {
+      messages,
+      max_completion_tokens: 1100,
+      chat_template_kwargs: { enable_thinking: false },
+      temperature: 0.55
+    });
+    clean = getTextFromAIResult(response);
+  } catch (error) {
+    primaryError = error;
+    console.error("Primary Workers AI call failed", String(error));
+  }
+
+  // One fallback keeps the bot responsive if the primary returns an empty answer.
+  if (!clean) {
+    try {
+      const response = await env.AI.run("@cf/google/gemma-4-26b-a4b-it", {
+        messages,
+        max_completion_tokens: 900,
+        chat_template_kwargs: { enable_thinking: false },
+        temperature: 0.6
+      });
+      clean = getTextFromAIResult(response);
+    } catch (error) {
+      console.error("Fallback Workers AI call failed", String(error));
+      if (primaryError) console.error("Original model failed too");
+    }
+  }
+
+  if (!clean) throw new Error("ИИ не вернул текст. Повтори запрос через минуту.");
   await remember(env, userId, [...history,
     { role: "user", content: prompt.slice(0, 6000) },
     { role: "assistant", content: clean.slice(0, 6000) }
