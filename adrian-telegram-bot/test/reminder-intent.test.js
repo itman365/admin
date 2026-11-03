@@ -26,6 +26,6 @@ test("spoken reminder creates verified Todoist task and push", async () => {
   assert.equal(task.payload.content,"Оплатить платные дороги");
   assert.match(task.payload.due_datetime,/T09:30:00/);
   assert.ok(calls.some(c=>c.endpoint.includes("/api/v1/reminders")),"Missing reminder API call");
-  assert.ok(calls.some(c=>c.endpoint.endsWith("/sendMessage")&&c.payload.text.includes("Todoist подтвердил")));
+  assert.ok(calls.some(c=>c.endpoint.endsWith("/sendMessage")&&c.payload.text.includes("задача создана и подтверждена")));
  } finally { globalThis.fetch=prior; }
 });
