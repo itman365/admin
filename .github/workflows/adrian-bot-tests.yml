@@ -1,0 +1,20 @@
+name: Adrian bot tests
+
+on:
+  push:
+    paths:
+      - "adrian-telegram-bot/**"
+      - ".github/workflows/adrian-bot-tests.yml"
+  workflow_dispatch:
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Run bot unit tests
+        working-directory: adrian-telegram-bot
+        run: npm test
