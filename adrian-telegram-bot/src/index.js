@@ -567,7 +567,7 @@ export default {
           url: webhook,
           secret_token: env.TELEGRAM_WEBHOOK_SECRET,
           allowed_updates: ["message", "callback_query"],
-          drop_pending_updates: true,
+          drop_pending_updates: false,
           max_connections: 10
         });
         return json({ ok: Boolean(result), webhook });
