@@ -29,7 +29,11 @@ export function safePlan(candidate,text,today=moscowDate()) {
   const remind=candidate.remind===true||/\bнапомни|напоминани|уведомлен/i.test(text);
   const priority=[1,2,3,4].includes(Number(candidate.priority))?Number(candidate.priority):4;
   const invalid=(reason)=>({operation:"unknown",ambiguous:true,reason});
-  if(date && (!/^\d{4}-\d{2}-\d{2}$/.test(date)||Number.isNaN(Date.parse(date+"T12:00:00Z"))))return invalid("Некорректная дата");
+  if(date) {
+    const parsed = new Date(date+"T12:00:00Z");
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(date) || Number.isNaN(parsed.valueOf()) ||
+       parsed.toISOString().slice(0,10)!==date) return invalid("Некорректная дата");
+  }
   if(date && date<today)return invalid("Названная дата уже прошла");
   if(time && (!/^([01]\d|2[0-3]):[0-5]\d$/.test(time)||!date))return invalid("Не удалось определить дату и точное время");
   if(op==="create"&&!title)return invalid("Не расслышал действие");
@@ -38,6 +42,7 @@ export function safePlan(candidate,text,today=moscowDate()) {
   if(op==="reschedule"&&!date)return invalid("Не удалось определить новый срок");
   const mentionsDate=/сегодня|завтра|послезавтра|суббот|воскресень|понедельник|вторник|сред|четверг|пятниц|\d{1,2}[.:]\d{2}|\d{4}-\d{2}-\d{2}/i.test(text);
   if(op==="create"&&mentionsDate&&!date)return invalid("Не удалось надёжно определить дату");
+  if(op==="create"&&/каждый|ежедневно|еженедельно|раз в неделю|по будням/i.test(text)&&!date) return invalid("Повторяющийся срок пока не поддерживается автоматически");
   return {operation:op,title,target,date,time,remind,priority,ambiguous:candidate.ambiguous===true,reason:String(candidate.reason||"").slice(0,200)};
 }
 export function duePayload(p) {
