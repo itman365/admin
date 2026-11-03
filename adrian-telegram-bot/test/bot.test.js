@@ -356,3 +356,33 @@ test("bare 9.05 today is not embedded into task title", async () => {
     assert.match(task.payload.due_datetime, /T06:05:00/);
   } finally { restore(); }
 });
+
+
+test("messy voice 'на сегодня 905' keeps action title and schedules 09:05 Moscow", async () => {
+  const { calls, restore } = mockApis();
+  try {
+    const c = ctx();
+    const env = {
+      ...baseEnv,
+      AI: {
+        async run(model) {
+          if (model.includes("whisper")) return {
+            text: "Эдриан, поставь задачу в тудуисти на сегодня 905 заехать к Хачатуру и заплатить за дерево пусть вот ты вот сейчас задачу которую поставишь чтоб там был звуковой сигнал чтобы она отпиликала 905"
+          };
+          throw new Error("Conversation model must not be used for Todoist task");
+        }
+      }
+    };
+    const update = { update_id: 57, message: {
+      from: { id: 123 }, chat: { id: 123, type: "private" },
+      voice: { file_id: "VOICE_COMPACT", file_size: 200 }
+    } };
+    await worker.fetch(event(update), env, c);
+    await Promise.all(c.promises);
+    const task = calls.find(x => x.url.includes("api.todoist.com/api/v1/tasks"));
+    assert.ok(task);
+    assert.equal(task.payload.content, "заехать к Хачатуру и заплатить за дерево");
+    assert.match(task.payload.due_datetime, /T06:05:00/);
+    assert.ok(calls.some(x => x.url.includes("api.todoist.com/api/v1/reminders")));
+  } finally { restore(); }
+});
