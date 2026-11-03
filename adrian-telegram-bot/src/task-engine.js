@@ -26,7 +26,7 @@ export function safePlan(candidate,text,today=moscowDate()) {
   const title=String(candidate.title||"").trim().slice(0,600);
   const target=String(candidate.target||"").trim().slice(0,240);
   const date=String(candidate.date||"").trim(), time=String(candidate.time||"").trim();
-  const remind=candidate.remind===true||/\bнапомни|напоминани|уведомлен/i.test(text);
+  const remind=candidate.remind===true||/(?:^|[\s,!:—-])напомни(?=[\s,!:—-]|$)|напоминани|уведомлен/i.test(text);
   const priority=[1,2,3,4].includes(Number(candidate.priority))?Number(candidate.priority):4;
   const invalid=(reason)=>({operation:"unknown",ambiguous:true,reason});
   if(date) {
