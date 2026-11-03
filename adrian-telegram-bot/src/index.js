@@ -97,7 +97,7 @@ function parseTask(text, now = new Date()) {
   raw = raw.replace(/\s+чтоб(?:ы)?\s+.*(?:звуков|пилик|напоминани|уведомлен).*$/i, "").trim();
   raw = raw.replace(/\s+чтобы\s+(?:пришло|было|был)\s+(?:мне\s+)?(?:звуковое\s+)?(?:напоминание|уведомление|звуковой\s+сигнал)(?:\s.*)?$/i, "").trim();
 
-  const prefix = raw.match(/^(?:(?:на\s+выходных\s+)?(?:в\s+эту\s+|в\s+следующую\s+|на\s+эту\s+|на\s+следующую\s+|в\s+|на\s+)?(?:субботу|воскресенье|понедельник|вторник|среду|четверг|пятницу)|(?:на\s+)?(?:сегодня|завтра|послезавтра))(?=\s|$)/i);
+  const prefix = raw.match(/^(?:(?:на\s+выходных\s+)?(?:в\s+эту\s+|в\s+следующую\s+|на\s+эту\s+|на\s+следующую\s+|в\s+|на\s+)?(?:субботу|воскресенье|понедельник|вторник|среду|четверг|пятницу)|(?:на\s+)?(?:сегодня|завтра|послезавтра))(?=[\s,;:.—-]|$)/i);
   let day = null;
   if (prefix) {
     const label = prefix[0].trim();
@@ -112,8 +112,8 @@ function parseTask(text, now = new Date()) {
   }
 
   // Handle "сегодня в 9.05", "на сегодня 9:05", "в 905", and "9.05 по Москве".
-  const clock = raw.match(/^(?:(?:в|к)\s+)?(\d{1,2})(?:[.:](\d{1,2}))?(?:\s*(?:по\s+Москве|по\s+московскому\s+времени|МСК))?(?=\s|$)/i) ||
-    raw.match(/^(?:(?:в|к)\s+)?(\d{3,4})(?:\s*(?:по\s+Москве|МСК))?(?=\s|$)/i);
+  const clock = raw.match(/^(?:(?:часов|часа|час)\s+)?(?:(?:в|к|на)\s+)?(\d{1,2})(?:[.:](\d{1,2}))?(?:\s*(?:часов|часа|ч))?(?:\s*(?:по\s+Москве|по\s+московскому\s+времени|МСК))?(?:\s*(?:дня|утра|вечера|ночи))?(?=[\s,;:.—-]|$)/i) ||
+    raw.match(/^(?:(?:часов|часа|час)\s+)?(?:(?:в|к|на)\s+)?(\d{3,4})(?:\s*(?:по\s+Москве|МСК))?(?:\s*(?:дня|утра|вечера|ночи))?(?=[\s,;:.—-]|$)/i);
   let clockValue = null;
   if (clock) {
     const digits = clock[1];
@@ -128,6 +128,8 @@ function parseTask(text, now = new Date()) {
   }
 
   // The action is the title; date, time and destination are NEVER saved in it.
+  const suspiciousSchedule = /^(?:(?:на|в)\s+)?(?:сегодня|завтра|послезавтра)(?=[\s,;:.—-]|$)|^(?:(?:часов|часа|час)\s+)?(?:в|к|на)\s+\d+(?=[\s,;:.—-]|$)/i;
+  if (suspiciousSchedule.test(raw)) return { title: raw, needsClarification: true, wantsReminder };
   const title = raw.trim();
   if (!title) return { title: "", wantsReminder };
   if (!day) return { title, due: null, wantsReminder };
@@ -415,6 +417,10 @@ async function processMessage(env, update) {
   if (request) {
     const task = parseTask(request.raw);
     task.wantsReminder = task.wantsReminder || /напомни|напоминани|уведомлен|звуков|сигнал|пилик|оповещен/i.test(text);
+    if (task.needsClarification) {
+      await say(env, chatId, "Не удалось разобрать дату или время. Задача НЕ создана. Повтори: «Сегодня в 11:00 купить Виктору свёрла и перо».");
+      return;
+    }
     if (!task.title) {
       await say(env, chatId, "Не расслышал название задачи. Скажи ещё раз: «Поставь задачу: позвонить Андрею».");
       return;
