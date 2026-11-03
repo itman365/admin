@@ -1,0 +1,12 @@
+name = "adrian-telegram-bot"
+main = "src/index.js"
+compatibility_date = "2026-11-04"
+
+[ai]
+binding = "AI"
+
+# Optional short-term Telegram chat memory.
+# First create a KV namespace in Cloudflare, then uncomment and replace ID.
+# [[kv_namespaces]]
+# binding = "HISTORY"
+# id = "REPLACE_WITH_YOUR_KV_NAMESPACE_ID"
