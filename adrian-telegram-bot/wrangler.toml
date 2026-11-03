@@ -5,8 +5,14 @@ compatibility_date = "2026-10-30"
 [ai]
 binding = "AI"
 
-# Optional short-term Telegram chat memory.
-# First create a KV namespace in Cloudflare, then uncomment and replace ID.
-# [[kv_namespaces]]
-# binding = "HISTORY"
-# id = "REPLACE_WITH_YOUR_KV_NAMESPACE_ID"
+# The numeric owner ID isn't a secret; source-control it so redeploys keep access.
+[vars]
+OWNER_TELEGRAM_ID = "751924427"
+
+# A KV namespace created in Cloudflare dashboard for chat context.
+[[kv_namespaces]]
+binding = "HISTORY"
+id = "e95882190e72499fa9a0b15fc502d731"
+
+# Keep TELEGRAM_BOT_TOKEN and TELEGRAM_WEBHOOK_SECRET only as Cloudflare
+# runtime Secrets; NEVER copy them into this file.
