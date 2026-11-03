@@ -152,3 +152,33 @@ test("voice task gets transcribed and saved", async () => {
     assert.equal(calls.find(c => c.url.includes("api.todoist.com")).payload.content, "проверить склад");
   } finally { restore(); }
 });
+
+
+test("fallback answers when primary model gives empty completion", async () => {
+  const { calls, restore } = mockApis();
+  const requestedModels = [];
+  try {
+    const c = ctx();
+    const customEnv = {
+      ...baseEnv,
+      AI: {
+        async run(model, args) {
+          requestedModels.push({ model, args });
+          if (model.includes("glm-4.7-flash")) {
+            return { choices: [{ message: { content: "" } }] };
+          }
+          return { response: "Подбор названия: Сырный дом." };
+        }
+      }
+    };
+    const update = { update_id: 7, message: {
+      from: { id: 123 }, chat: { id: 123, type: "private" },
+      text: "Предложи название для продажи сырной пасты"
+    } };
+    await worker.fetch(event(update), customEnv, c);
+    await Promise.all(c.promises);
+    assert.equal(requestedModels.length, 2);
+    assert.equal(requestedModels[0].args.chat_template_kwargs.enable_thinking, false);
+    assert.match(calls.find(c => c.url.endsWith("/sendMessage")).payload.text, /Сырный дом/);
+  } finally { restore(); }
+});
