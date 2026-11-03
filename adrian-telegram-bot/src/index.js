@@ -524,9 +524,11 @@ async function processUpdate(env, update) {
     }
   } catch (error) {
     console.error("Bot processing error", String(error));
-    const id = update && update.message && update.message.chat && update.message.chat.id;
-    if (id && update.message.chat.type === "private" &&
-        String(update.message.from && update.message.from.id) === String(env.OWNER_TELEGRAM_ID)) {
+    const msg = update?.message || update?.callback_query?.message;
+    const ownerId = update?.message?.from?.id || update?.callback_query?.from?.id;
+    const id = msg?.chat?.id;
+    if (id && msg.chat.type === "private" &&
+        String(ownerId) === String(env.OWNER_TELEGRAM_ID)) {
       try { await say(env, id, "Ошибка обработки: " + String(error.message || error).slice(0, 220)); }
       catch (_) { /* no fallback channel */ }
     }
