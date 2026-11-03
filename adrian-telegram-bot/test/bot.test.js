@@ -386,3 +386,48 @@ test("messy voice 'на сегодня 905' keeps action title and schedules 09:
     assert.ok(calls.some(x => x.url.includes("api.todoist.com/api/v1/reminders")));
   } finally { restore(); }
 });
+
+
+test("voice 'на сегодня, часов на 11 по Москве дня' separates deadline and title", async () => {
+  const { calls, restore } = mockApis();
+  try {
+    const c = ctx();
+    const env = {
+      ...baseEnv,
+      AI: { async run(model) {
+        if (model.includes("whisper")) return {
+          text: "Эдриан, поставь задачу на сегодня, часов на 11 по Москве дня, купить Виктору сверла и перо."
+        };
+        throw new Error("Do not use conversational AI to create a task");
+      } }
+    };
+    const update = { update_id: 58, message: {
+      from: { id: 123 }, chat: { id: 123, type: "private" },
+      voice: { file_id: "VOICE_AT_ELEVEN", file_size: 240 }
+    } };
+    await worker.fetch(event(update), env, c);
+    await Promise.all(c.promises);
+    const task = calls.find(x => x.url.includes("api.todoist.com/api/v1/tasks"));
+    assert.ok(task, "Must create the task through Todoist");
+    assert.equal(task.payload.content, "купить Виктору сверла и перо");
+    assert.match(task.payload.due_datetime, /T08:00:00/);
+    const message = calls.find(x => x.url.endsWith("/sendMessage")).payload.text;
+    assert.match(message, /Todoist подтвердил создание задачи/);
+  } finally { restore(); }
+});
+
+test("unparsed scheduling cue is not silently saved as task title", async () => {
+  const { calls, restore } = mockApis();
+  try {
+    const c = ctx();
+    const update = { update_id: 59, message: {
+      from: { id: 123 }, chat: { id: 123, type: "private" },
+      text: "Поставь задачу на сегодня, часов на 25, купить свёрла"
+    } };
+    await worker.fetch(event(update), baseEnv, c);
+    await Promise.all(c.promises);
+    assert.equal(calls.some(x => x.url.includes("api.todoist.com/api/v1/tasks")), false);
+    const msg = calls.find(x => x.url.endsWith("/sendMessage")).payload.text;
+    assert.match(msg, /Задача НЕ создана/);
+  } finally { restore(); }
+});
