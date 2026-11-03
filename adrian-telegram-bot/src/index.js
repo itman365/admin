@@ -78,35 +78,63 @@ function nextWeekdayISO(dayName, now = new Date()) {
   return shiftISODate(todayISO, (target - todayDay + 7) % 7);
 }
 
-function parseTask(text) {
-  const raw = String(text || "").trim().replace(/[.?!]+$/, "");
+function parseTask(text, now = new Date()) {
+  let raw = String(text || "").trim().replace(/[.?!]+$/, "");
+  const wantsReminder = /напомни|напоминани|уведомлен|звуков|сигнал|пилик|оповещен/i.test(raw);
+  // Voice transcription frequently includes the destination as part of the title.
+  raw = raw.replace(/^(?:(?:в|на)\s+)?(?:todoist|тудуист[еи]?|тудуист|тудаист[еи]?)(?:\s+|$)/i, "").trim();
+
   const divider = raw.indexOf("|");
   if (divider >= 0) {
-    // Preserve explicit dates or times provided by the user.
-    return {
-      due: raw.slice(0, divider).trim(),
-      title: raw.slice(divider + 1).trim()
-    };
+    const dueText = raw.slice(0, divider).trim();
+    const parsed = parseTask(dueText + " " + raw.slice(divider + 1).trim(), now);
+    if (parsed.dueDate || parsed.dueDateTime) return { ...parsed, wantsReminder };
+    return { title: raw.slice(divider + 1).trim(), due: dueText, wantsReminder };
   }
 
-  const m = raw.match(/^(?:(?:на\s+выходных\s+)?(?:(?:в\s+эту\s+|в\s+следующую\s+|на\s+эту\s+|на\s+следующую\s+|в\s+|на\s+)?(?:субботу|воскресенье|понедельник|вторник|среду|четверг|пятницу))|(?:сегодня|завтра|послезавтра))(?:\s+(?:в|к)\s+\d{1,2}(?::\d{2})?)?\s*[,:—-]?\s+(.+)$/i);
-  if (!m) return { title: raw, due: null };
-  const title = m[1].trim();
-  const prefix = raw.slice(0, m[0].length - m[1].length).trim().replace(/[,:—-]$/, "").trim();
-  const weekday = prefix.match(/субботу|воскресенье|понедельник|вторник|среду|четверг|пятницу/i);
-  const time = prefix.match(/(?:в|к)\s+(\d{1,2}(?::\d{2})?)$/i);
-  const timeText = time ? time[1] : null;
-  const day = weekday
-    ? nextWeekdayISO(weekday[0])
-    : shiftISODate(localISODate(), /^послезавтра/i.test(prefix) ? 2 : /^завтра/i.test(prefix) ? 1 : 0);
+  // Strip a trailing reminder instruction, not the action itself.
+  raw = raw.replace(/\s+чтобы\s+(?:пришло|было|был)\s+(?:мне\s+)?(?:звуковое\s+)?(?:напоминание|уведомление|звуковой\s+сигнал)\b.*$/i, "").trim();
 
-  if (weekday && /следующую/i.test(prefix)) {
-    // "в следующую субботу" unambiguously means a later week.
-    const thisWeek = nextWeekdayISO(weekday[0]);
-    const next = shiftISODate(thisWeek, 7);
-    return timeText ? { title, due: next + " " + timeText } : { title, dueDate: next, due: next };
+  const prefix = raw.match(/^(?:(?:на\s+выходных\s+)?(?:в\s+эту\s+|в\s+следующую\s+|на\s+эту\s+|на\s+следующую\s+|в\s+|на\s+)?(?:субботу|воскресенье|понедельник|вторник|среду|четверг|пятницу)|(?:на\s+)?(?:сегодня|завтра|послезавтра))(?=\s|$)/i);
+  let day = null;
+  if (prefix) {
+    const label = prefix[0].trim();
+    const weekday = label.match(/субботу|воскресенье|понедельник|вторник|среду|четверг|пятницу/i);
+    if (weekday) {
+      day = nextWeekdayISO(weekday[0], now);
+      if (/следующую/i.test(label)) day = shiftISODate(day, 7);
+    } else {
+      day = shiftISODate(localISODate(now), /послезавтра/i.test(label) ? 2 : /завтра/i.test(label) ? 1 : 0);
+    }
+    raw = raw.slice(prefix[0].length).trim().replace(/^[,:—-]\s*/, "");
   }
-  return timeText ? { title, due: day + " " + timeText } : { title, dueDate: day, due: day };
+
+  // Handle "сегодня в 9.05", "на сегодня 9:05", "в 905", and "9.05 по Москве".
+  const clock = raw.match(/^(?:(?:в|к)\s+)?(\d{1,2})(?:[.:](\d{1,2}))?(?:\s*(?:по\s+Москве|по\s+московскому\s+времени|МСК))?(?=\s|$)/i) ||
+    raw.match(/^(?:в|к)\s+(\d{3,4})(?:\s*(?:по\s+Москве|МСК))?(?=\s|$)/i);
+  let clockValue = null;
+  if (clock) {
+    const digits = clock[1];
+    const compact = digits.length >= 3;
+    const hour = compact ? Number(digits.slice(0, -2)) : Number(digits);
+    const minute = compact ? Number(digits.slice(-2)) : Number(clock[2] || "0");
+    if (hour >= 0 && hour <= 23 && minute >= 0 && minute <= 59) {
+      clockValue = String(hour).padStart(2, "0") + ":" + String(minute).padStart(2, "0");
+      raw = raw.slice(clock[0].length).trim().replace(/^[,:—-]\s*/, "");
+      if (!day) day = localISODate(now);
+    }
+  }
+
+  // The action is the title; date, time and destination are NEVER saved in it.
+  const title = raw.trim();
+  if (!title) return { title: "", wantsReminder };
+  if (!day) return { title, due: null, wantsReminder };
+  if (!clockValue) return { title, due: day, dueDate: day, wantsReminder };
+
+  // Fixed clock time in Moscow (UTC+03:00). Due datetime is sent to Todoist
+  // as a proper UTC ISO timestamp, independent of Worker server timezone.
+  const dueDateTime = new Date(day + "T" + clockValue + ":00+03:00").toISOString();
+  return { title, due: day + " " + clockValue + " МСК", dueDateTime, wantsReminder };
 }
 
 function extractTaskRequest(text) {
@@ -147,40 +175,70 @@ async function createTask(env, task) {
     return { ok: false, message: "Todoist ещё не подключён. Добавь TODOIST_API_TOKEN в секреты Cloudflare. Задача НЕ создана." };
   }
   if (!task.title) {
-    return { ok: false, message: "Пустая задача. Пример: /task завтра в 10:00 | Позвонить клиенту" };
+    return { ok: false, message: "Пустая задача. Например: /task сегодня в 9.05 заехать к клиенту" };
   }
   const payload = { content: task.title.slice(0, 1000) };
-  if (task.dueDate) {
+  if (task.dueDateTime) {
+    payload.due_datetime = task.dueDateTime;
+  } else if (task.dueDate) {
     payload.due_date = task.dueDate;
   } else if (task.due) {
     payload.due_string = task.due;
     payload.due_lang = "ru";
   }
   if (env.TODOIST_PROJECT_ID) payload.project_id = env.TODOIST_PROJECT_ID;
+  const headers = {
+    authorization: "Bearer " + env.TODOIST_API_TOKEN,
+    "content-type": "application/json"
+  };
   const response = await fetch("https://api.todoist.com/api/v1/tasks", {
-    method: "POST",
-    headers: {
-      "authorization": "Bearer " + env.TODOIST_API_TOKEN,
-      "content-type": "application/json"
-    },
-    body: JSON.stringify(payload)
+    method: "POST", headers, body: JSON.stringify(payload)
   });
   if (!response.ok) {
-    const detail = (await response.text()).slice(0, 200);
-    throw new Error("Todoist отклонил создание задачи (" + response.status + "). Задача НЕ подтверждена. " + detail);
+    const detail = (await response.text()).slice(0, 150);
+    throw new Error("Todoist отклонил создание (" + response.status + "). Задача НЕ подтверждена. " + detail);
   }
   const result = await response.json();
-  if (!result || !result.id) {
-    throw new Error("Todoist не вернул ID задачи. Создание не подтверждено. Проверь Todoist перед повтором.");
+  if (!result?.id) {
+    throw new Error("Todoist не вернул ID задачи. Проверь список до повтора.");
   }
-  const returnedProject = result.project_id;
-  if (env.TODOIST_PROJECT_ID && returnedProject && returnedProject !== env.TODOIST_PROJECT_ID) {
-    throw new Error("Todoist вернул задачу в другом проекте (ID " + result.id + "). Проверь Todoist.");
+  if (env.TODOIST_PROJECT_ID && result.project_id && result.project_id !== env.TODOIST_PROJECT_ID) {
+    throw new Error("Todoist создал задачу в другом проекте (ID " + result.id + "). Проверь список.");
   }
-  const dueVerified = !task.due || Boolean(result.due?.date);
-  const message = "Todoist подтвердил создание задачи (ID " + result.id + "):\n" +
-    task.title + "\nПроект: " + (env.TODOIST_PROJECT_ID ? "Эдриан" : "Входящие") +
-    (task.due ? (dueVerified ? "\nСрок: " + result.due.date : "\nВнимание: Todoist не подтвердил срок, проверь задачу.") : "");
+
+  const dateVerified = !task.due || Boolean(result.due?.date);
+  let message = "Todoist подтвердил создание задачи (ID " + result.id + "):\n" +
+    task.title + "\nПроект: " + (env.TODOIST_PROJECT_ID ? "Эдриан" : "Входящие");
+  if (task.due) message += dateVerified
+    ? "\nВремя/дата: " + task.due
+    : "\nВНИМАНИЕ: Todoist не вернул дату/время, проверь задачу.";
+
+  if (task.wantsReminder) {
+    if (!task.dueDateTime) {
+      message += "\nPush-напоминание НЕ создано: назови конкретное время.";
+    } else if (!dateVerified) {
+      message += "\nPush-напоминание НЕ создано: Todoist не подтвердил время задачи.";
+    } else {
+      try {
+        const reminderRes = await fetch("https://api.todoist.com/api/v1/reminders", {
+          method: "POST", headers,
+          body: JSON.stringify({
+            task_id: String(result.id),
+            reminder_type: "relative",
+            minute_offset: 0,
+            service: "push"
+          })
+        });
+        const data = await reminderRes.json().catch(() => ({}));
+        if (!reminderRes.ok || !data?.id) throw new Error("Todoist не подтвердил напоминание");
+        message += "\nPush-напоминание создано на момент задачи (ID " + data.id + ")." +
+          "\nЗвук зависит от настроек Todoist и телефона.";
+      } catch (error) {
+        console.error("Reminder creation failed", String(error));
+        message += "\nPush-напоминание НЕ создано. Проверь разрешения и возможности Todoist.";
+      }
+    }
+  }
   return { ok: true, id: String(result.id), message };
 }
 
@@ -354,6 +412,7 @@ async function processMessage(env, update) {
   const request = extractTaskRequest(text);
   if (request) {
     const task = parseTask(request.raw);
+    task.wantsReminder = task.wantsReminder || /напомни|напоминани|уведомлен|звуков|сигнал|пилик|оповещен/i.test(text);
     if (!task.title) {
       await say(env, chatId, "Не расслышал название задачи. Скажи ещё раз: «Поставь задачу: позвонить Андрею».");
       return;
