@@ -485,6 +485,12 @@ async function processMessage(env, update) {
     return;
   }
 
+  // Never let a missed command become a fabricated "done" from the chat model.
+  if (/(?:^|[\\s,!:—-])(?:напомни|напомнить|напоминание|поставь\\s+задачу|создай\\s+задачу|запиши\\s+задачу)(?=[\\s,!:—-]|$)/i.test(text)) {
+    await say(env, chatId, "Похоже на поручение, но я не смог разобрать его надёжно. Задачу и напоминание НЕ создавал. Переформулируй: «Напомни сегодня в 12:30 оплатить платные дороги».");
+    return;
+  }
+
   await telegram(env, "sendChatAction", { chat_id: chatId, action: "typing" });
   const answer = await askAI(env, userId, text);
   await say(env, chatId, fromVoice ? "Распознал: " + text + "\n\n" + answer : answer);
