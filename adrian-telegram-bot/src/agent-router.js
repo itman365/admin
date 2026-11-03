@@ -31,6 +31,7 @@ function parseSimpleCommand(text) {
   if(/^\/(?:status)(?:@\w+)?\s*$/i.test(cmd))return {operation:"status"};
   if(/^\/(?:notes)(?:@\w+)?\s*$/i.test(cmd))return {operation:"notes"};
   if(/^\/(?:cancel)(?:@\w+)?\s*$/i.test(cmd))return {operation:"cancel"};
+  if(/^\/confirm(?:@\w+)?\s*$/i.test(cmd))return {operation:"confirm"};
   const note=cmd.match(/^\/note(?:@\w+)?\s+([\s\S]+)$/i);
   if(note)return {operation:"note",body:note[1]};
   const done=cmd.match(/^\/done(?:@\w+)?\s+(.+)$/i);
@@ -54,6 +55,21 @@ export async function handleAgent(env,ownerId,chatId,text,{say,telegram}) {
   if(direct?.operation==="cancel"){
     if(env.HISTORY)await env.HISTORY.delete(pendingKey(ownerId));
     await send("Ожидаемое подтверждение отменено.");
+    return true;
+  }
+  if(direct?.operation==="confirm"){
+    const pending=await kvGet(env,pendingKey(ownerId));
+    if(!pending){await send("Нет действия, ожидающего подтверждения.");return true;}
+    await env.HISTORY.delete(pendingKey(ownerId));
+    if(pending.operation==="complete"){
+      await closeTask(env,pending.id);
+      await send("Todoist подтвердил выполнение: "+pending.title);
+    } else if(pending.operation==="delete"){
+      await removeTask(env,pending.id);
+      await send("Todoist подтвердил удаление: "+pending.title);
+    } else {
+      await send("Неизвестный тип подтверждения, ничего не менял.");
+    }
     return true;
   }
   if(direct?.operation==="note"){
@@ -173,7 +189,7 @@ export async function handleAgent(env,ownerId,chatId,text,{say,telegram}) {
     await telegram(env,"sendMessage",{
       chat_id:chatId,
       text:(plan.operation==="delete"?"Удалить без возможности восстановления?":"Отметить выполненной?")+
-        "\n"+target.content+"\nID: "+target.id,
+        "\n"+target.content+"\nID: "+target.id+"\nНажми кнопку либо отправь /confirm. Для отмены — /cancel.",
       reply_markup:{inline_keyboard:[[
         {text:"Подтвердить",callback_data:"adrian:"+nonce+":yes"},
         {text:"Отмена",callback_data:"adrian:"+nonce+":no"}
