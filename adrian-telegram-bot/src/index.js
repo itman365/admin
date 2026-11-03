@@ -349,8 +349,19 @@ function getTextFromAIResult(result) {
 
 async function askAI(env, userId, prompt) {
   const history = await getHistory(env, userId);
+  let noteContext = "";
+  if (env.HISTORY) {
+    try {
+      const raw = await env.HISTORY.get("notes:" + userId);
+      const notes = JSON.parse(raw || "[]");
+      if (Array.isArray(notes)) {
+        noteContext = notes.slice(-20).map(n => String(n.text || "").slice(0, 350))
+          .filter(Boolean).join("\n- ").slice(0, 4000);
+      }
+    } catch (err) { console.error("Notes read failed", String(err)); }
+  }
   const messages = [
-    { role: "system", content: SYSTEM_PROMPT },
+    { role: "system", content: SYSTEM_PROMPT + (noteContext ? "\nФакты и установки, сохранённые владельцем через /note:\n- " + noteContext : "") },
     ...history,
     { role: "user", content: prompt }
   ];
