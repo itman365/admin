@@ -208,7 +208,8 @@ test("natural-language voice task calls Todoist with weekend due date", async ()
     const task = calls.find(c => c.url.includes("api.todoist.com"));
     assert.ok(task, "The bot must call Todoist, not just the language model");
     assert.equal(task.payload.content, "закрыть подавало");
-    assert.equal(task.payload.due_string, "в субботу");
+    assert.match(task.payload.due_date, /^\\d{4}-\\d{2}-\\d{2}$/);
+    assert.equal(new Date(task.payload.due_date + "T12:00:00Z").getUTCDay(), 6);
     const message = calls.find(c => c.url.endsWith("/sendMessage"));
     assert.match(message.payload.text, /Todoist подтвердил создание задачи/);
     assert.match(message.payload.text, /TASK-1/);
@@ -260,4 +261,35 @@ test("a failed Todoist response is never called success", async () => {
     globalThis.fetch = oldFetch;
     restore();
   }
+});
+
+
+test("voice task 'на субботу' has due_date separate from task title", async () => {
+  const { calls, restore } = mockApis();
+  try {
+    const c = ctx();
+    const customEnv = {
+      ...baseEnv,
+      AI: {
+        async run(model) {
+          if (model.includes("whisper")) {
+            return { text: "Эдриан, поставь задачу на субботу закрыть подвал в домике." };
+          }
+          throw new Error("Should not invoke conversational AI for Todoist task");
+        }
+      }
+    };
+    const update = { update_id: 54, message: {
+      from: { id: 123 }, chat: { id: 123, type: "private" },
+      voice: { file_id: "VOICE_SATURDAY", file_size: 32 }
+    } };
+    await worker.fetch(event(update), customEnv, c);
+    await Promise.all(c.promises);
+    const task = calls.find(c => c.url.includes("api.todoist.com"));
+    assert.ok(task, "Todoist should receive a task");
+    assert.equal(task.payload.content, "закрыть подвал в домике");
+    assert.match(task.payload.due_date, /^\d{4}-\d{2}-\d{2}$/);
+    assert.equal(new Date(task.payload.due_date + "T12:00:00Z").getUTCDay(), 6);
+    assert.ok(!("due_string" in task.payload));
+  } finally { restore(); }
 });
