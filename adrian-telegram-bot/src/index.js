@@ -13,7 +13,10 @@ const SYSTEM_PROMPT = [
   "Не изображай человека, не утверждай, что спишь или живёшь отдельно от общения.",
   "Не утверждай, что помнишь прошлые чаты ChatGPT или имеешь доступ к чужим аккаунтам.",
   "Если контекста не хватает, честно уточни; не придумывай факты и сделанные действия.",
-  "Для Todoist есть /task, список команд — /help."
+  "Для Todoist есть /task, список команд — /help.",
+  "Ты никогда не создаёшь задачи и не вызываешь внешние сервисы самостоятельно.",
+  "Задачи создаёт отдельная программа до обращения к тебе; не говори «задача создана», «записал», «отправил», «сделано» без подтверждённого результата внешнего сервиса.",
+  "Не выдумывай тарифы, правила конфиденциальности и отсутствие хранения записей. Если не знаешь — скажи об этом."
 ].join(" ");
 
 function json(data, status = 200) {
@@ -48,20 +51,69 @@ async function say(env, chatId, text) {
 }
 
 function parseTask(text) {
-  const raw = text.trim();
+  const raw = String(text || "").trim().replace(/[.?!]+$/, "");
   const divider = raw.indexOf("|");
-  if (divider < 0) return { title: raw };
-  return {
-    due: raw.slice(0, divider).trim(),
-    title: raw.slice(divider + 1).trim()
-  };
+  if (divider >= 0) {
+    return {
+      due: raw.slice(0, divider).trim(),
+      title: raw.slice(divider + 1).trim()
+    };
+  }
+
+  // The date is taken only from the beginning, so words inside a title
+  // don't accidentally become a due date.
+  const m = raw.match(/^(?:(?:на\s+выходных\s+)?(?:(?:в\s+эту\s+|в\s+|на\s+эту\s+)?(?:субботу|воскресенье|понедельник|вторник|среду|четверг|пятницу))|(?:сегодня|завтра|послезавтра))(?:\s+(?:в|к)\s+\d{1,2}(?::\d{2})?)?\s*[,:—-]?\s+(.+)$/i);
+  if (m) {
+    const title = m[1].trim();
+    const prefix = raw.slice(0, m.index + m[0].length - m[1].length).trim().replace(/[,:—-]$/, "").trim();
+    const weekday = prefix.match(/(?:субботу|воскресенье|понедельник|вторник|среду|четверг|пятницу)/i);
+    const time = prefix.match(/(?:в|к)\s+(\d{1,2}(?::\d{2})?)$/i);
+    const due = weekday ? "в " + weekday[0].toLowerCase() : prefix;
+    return { title, due: time && weekday ? due + " в " + time[1] : due };
+  }
+  return { title: raw, due: null };
+}
+
+function extractTaskRequest(text) {
+  if (isCommand(text, "task")) {
+    return { raw: text.replace(/^\/task(?:@\w+)?\s*/i, "") };
+  }
+  const cleaned = String(text || "").trim()
+    .replace(/^(?:(?:так|ну|эдриан|слушай)[\s,!.:—-]+)+/i, "");
+  const direct = cleaned.match(/^задача\s*[:—-]\s*(.*)$/i);
+  if (direct) return { raw: direct[1] };
+  const imperative = cleaned.match(/^(?:поставь|добавь|создай|запиши|внеси|закинь)(?:\s+\S+){0,12}?\s+(?:задачу|задачку)\s*[:—-]?\s*(.*)$/i);
+  return imperative ? { raw: imperative[1] } : null;
+}
+
+async function rememberTaskReceipt(env, userId, data) {
+  if (!env.HISTORY) return;
+  try {
+    await env.HISTORY.put("last_task:" + userId, JSON.stringify(data), {
+      expirationTtl: 7 * 24 * 60 * 60
+    });
+  } catch (error) {
+    console.error("Could not save task receipt", String(error));
+  }
+}
+
+async function getTaskReceipt(env, userId) {
+  if (!env.HISTORY) return null;
+  try {
+    const raw = await env.HISTORY.get("last_task:" + userId);
+    return raw ? JSON.parse(raw) : null;
+  } catch (_) {
+    return null;
+  }
 }
 
 async function createTask(env, task) {
   if (!env.TODOIST_API_TOKEN) {
-    return "Todoist ещё не подключён. Добавь TODOIST_API_TOKEN в секреты Cloudflare.";
+    return { ok: false, message: "Todoist ещё не подключён. Добавь TODOIST_API_TOKEN в секреты Cloudflare. Задача НЕ создана." };
   }
-  if (!task.title) return "Пустая задача. Пример: /task завтра в 10:00 | Позвонить клиенту";
+  if (!task.title) {
+    return { ok: false, message: "Пустая задача. Пример: /task завтра в 10:00 | Позвонить клиенту" };
+  }
   const payload = { content: task.title.slice(0, 1000) };
   if (task.due) {
     payload.due_string = task.due;
@@ -77,13 +129,22 @@ async function createTask(env, task) {
     body: JSON.stringify(payload)
   });
   if (!response.ok) {
-    const detail = (await response.text()).slice(0, 250);
-    throw new Error("Todoist " + response.status + " " + detail);
+    const detail = (await response.text()).slice(0, 200);
+    throw new Error("Todoist отклонил создание задачи (" + response.status + "). Задача НЕ подтверждена. " + detail);
   }
   const result = await response.json();
-  return "Задача добавлена" + (env.TODOIST_PROJECT_ID ? " в проект Эдриан" : " во Входящие") +
-    ":\n" + task.title + (task.due ? "\nКогда: " + task.due : "") +
-    (result.id ? "\nID: " + result.id : "");
+  if (!result || !result.id) {
+    throw new Error("Todoist не вернул ID задачи. Создание не подтверждено. Проверь Todoist перед повтором.");
+  }
+  const returnedProject = result.project_id;
+  if (env.TODOIST_PROJECT_ID && returnedProject && returnedProject !== env.TODOIST_PROJECT_ID) {
+    throw new Error("Todoist вернул задачу в другом проекте (ID " + result.id + "). Проверь Todoist.");
+  }
+  const dueVerified = !task.due || Boolean(result.due?.date);
+  const message = "Todoist подтвердил создание задачи (ID " + result.id + "):\n" +
+    task.title + "\nПроект: " + (env.TODOIST_PROJECT_ID ? "Эдриан" : "Входящие") +
+    (task.due ? (dueVerified ? "\nСрок: " + result.due.date : "\nВнимание: Todoist не подтвердил срок, проверь задачу.") : "");
+  return { ok: true, id: String(result.id), message };
 }
 
 function toBase64(bytes) {
@@ -253,16 +314,32 @@ async function processMessage(env, update) {
     return;
   }
 
-  let taskText = null;
-  if (isCommand(text, "task")) {
-    taskText = text.replace(/^\/task(?:@\w+)?\s*/i, "");
-  } else {
-    const match = text.match(/^\s*(?:задача\s*[:—-]|поставь задачу\s*[:—-]?|запиши задачу\s*[:—-]?|создай задачу\s*[:—-]?)[\s]*(.+)$/i);
-    if (match) taskText = match[1];
+  const request = extractTaskRequest(text);
+  if (request) {
+    const task = parseTask(request.raw);
+    if (!task.title) {
+      await say(env, chatId, "Не расслышал название задачи. Скажи ещё раз: «Поставь задачу: позвонить Андрею».");
+      return;
+    }
+    let result;
+    try {
+      result = await createTask(env, task);
+    } catch (error) {
+      await rememberTaskReceipt(env, userId, { ok: false, message: String(error.message || error) });
+      throw error;
+    }
+    await rememberTaskReceipt(env, userId, result);
+    await say(env, chatId, fromVoice ? "Распознал: " + text + "\n\n" + result.message : result.message);
+    return;
   }
-  if (taskText !== null) {
-    const result = await createTask(env, parseTask(taskText));
-    await say(env, chatId, result);
+
+  // Answer follow-up status questions from a real Todoist receipt, not from
+  // model-generated prose that may falsely claim completion.
+  if (/^\s*(?:ну\s+)?(?:поставил(?:а)?|записал(?:а)?|добавил(?:а)?|создал(?:а)?|задач[ау]\s+(?:создал|добавил|поставил))\s*[?!.\s]*$/i.test(text)) {
+    const receipt = await getTaskReceipt(env, userId);
+    await say(env, chatId, receipt
+      ? receipt.message
+      : "Подтверждения от Todoist нет. Раньше бот мог ошибочно написать, что задача создана. Повтори поручение с фразой «поставь задачу».");
     return;
   }
 
