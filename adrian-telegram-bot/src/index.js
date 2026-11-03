@@ -1,6 +1,8 @@
 // Adrian Telegram bot — Cloudflare Workers, no external npm runtime dependencies.
 // Runtime secrets are set in Cloudflare. Never commit them to GitHub.
 
+import {handleAgent,handleAgentCallback} from "./agent-router.js";
+
 const CHAT_MODEL = "@cf/zai-org/glm-4.7-flash";
 const SPEECH_MODEL = "@cf/openai/whisper-large-v3-turbo";
 const MAX_VOICE_BYTES = 4 * 1024 * 1024;
@@ -420,7 +422,15 @@ async function processMessage(env, update) {
       "Просто пиши или отправляй голосовые — отвечу.\n" +
       "/task Купить материалы — создать задачу в Todoist\n" +
       "/task завтра в 10:00 | Позвонить Андрею — задача со сроком\n" +
-      "Голосом можно сказать: «Задача: позвонить клиенту».\n" +
+      "Голосом можно сказать: «Напомни завтра в 12:30 оплатить дороги».\n" +
+      "/tasks — активные задачи, /today — на сегодня\n" +
+      "/digest — сегодня и просрочка, /projects — проекты\n" +
+      "/done <ID> — завершить с подтверждением\n" +
+      "/delete <ID> — удалить с подтверждением\n" +
+      "/move <ID> | завтра в 12:00 — перенести срок\n" +
+      "/confirm — подтвердить последнее действие, /cancel — отменить\n" +
+      "/note текст — сохранить заметку, /notes — прочитать\n" +
+      "/status — диагностика подключений\n" +
       "/reset — стереть краткую историю переписки\n" +
       "/id — узнать свой Telegram ID\n" +
       "/help — эта подсказка");
@@ -446,6 +456,9 @@ async function processMessage(env, update) {
     await say(env, chatId, "Сообщение слишком длинное. Раздели его на части.");
     return;
   }
+
+  const newAgentHandled = await handleAgent(env,userId,chatId,text,{say,telegram});
+  if (newAgentHandled) return;
 
   const request = extractTaskRequest(text);
   if (request) {
@@ -503,7 +516,11 @@ async function processUpdate(env, update) {
       if (await env.HISTORY.get(key)) return;
       await env.HISTORY.put(key, "1", { expirationTtl: 86400 });
     }
-    await processMessage(env, update);
+    if (update.callback_query) {
+      await handleAgentCallback(env,update.callback_query,{say,telegram});
+    } else {
+      await processMessage(env, update);
+    }
   } catch (error) {
     console.error("Bot processing error", String(error));
     const id = update && update.message && update.message.chat && update.message.chat.id;
@@ -533,7 +550,7 @@ export default {
         const result = await telegram(env, "setWebhook", {
           url: webhook,
           secret_token: env.TELEGRAM_WEBHOOK_SECRET,
-          allowed_updates: ["message"],
+          allowed_updates: ["message", "callback_query"],
           drop_pending_updates: true,
           max_connections: 10
         });
