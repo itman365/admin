@@ -37,6 +37,8 @@ function parseSimpleCommand(text) {
   const search=cmd.match(/^\/find(?:@\w+)?\s+(.+)$/i);
   if(search)return {operation:"find",query:search[1]};
   if(/^\/(?:status)(?:@\w+)?\s*$/i.test(cmd))return {operation:"status"};
+  if(/^\/check(?:@\w+)?\s*$/i.test(cmd))return {operation:"check"};
+  if(/^\/last(?:@\w+)?\s*$/i.test(cmd))return {operation:"last"};
   if(/^\/(?:notes)(?:@\w+)?\s*$/i.test(cmd))return {operation:"notes"};
   if(/^\/(?:cancel)(?:@\w+)?\s*$/i.test(cmd))return {operation:"cancel"};
   if(/^\/confirm(?:@\w+)?\s*$/i.test(cmd))return {operation:"confirm"};
@@ -52,6 +54,49 @@ function parseSimpleCommand(text) {
   if(moved)return {operation:"reschedule",target:moved[1],requestedDate:moved[2]};
   return null;
 }
+// A recent identical Todoist record usually means Telegram was retried or the
+// user repeated the same voice request. Do not create it a second time.
+// This guards common duplicates, but does not provide atomic exactly-once execution.
+function normalizeTitle(str) {
+  return String(str||"").toLowerCase().replace(/ё/g,"е")
+    .replace(/\s+/g," ").trim();
+}
+function sameDue(task,plan) {
+  if(!plan.date) return !task.due?.date;
+  const due=String(task.due?.date||"");
+  if(!due) return false;
+  if(plan.time) {
+    if(!due.includes("T")) return false;
+    const utc=new Date(plan.date+"T"+plan.time+":00+03:00");
+    const value=new Date(due);
+    if(!Number.isNaN(value.valueOf()))return Math.abs(utc-value)<120000;
+    return due.slice(0,10)===plan.date && due.slice(11,16)===plan.time;
+  }
+  return due.slice(0,10)===plan.date;
+}
+async function recentMatchingTask(env,projectId,plan,now=new Date()) {
+  // Only enabled when HISTORY is configured: the bot already depends on it
+  // for replay tracking, and older installations retain the simpler behavior.
+  if(!env.HISTORY)return null;
+  const tasks=await listTasks(env,projectId,100);
+  const matching=tasks.find(t=>{
+    const created=String(t.created_at||t.added_at||"");
+    const parsed=new Date(created);
+    return created && !Number.isNaN(parsed.valueOf()) &&
+      now.getTime()-parsed.getTime()>=0 && now.getTime()-parsed.getTime()<=10*60*1000 &&
+      (!projectId || String(t.project_id||"")===String(projectId)) &&
+      normalizeTitle(t.content)===normalizeTitle(plan.title) &&
+      sameDue(t,plan);
+  });
+  return matching||null;
+}
+async function saveLastReceipt(env,ownerId,record) {
+  if(!env.HISTORY)return;
+  try { await kvPut(env,"last_receipt:"+ownerId,
+    {...record,at:new Date().toISOString()},14*86400);
+  } catch(error) { console.error("Receipt could not be saved:",String(error)); }
+}
+
 export async function handleAgent(env,ownerId,chatId,text,{say,telegram}) {
   const direct=parseSimpleCommand(text);
   if(!direct&&!hasTaskIntent(text))return false;
@@ -60,6 +105,36 @@ export async function handleAgent(env,ownerId,chatId,text,{say,telegram}) {
     await send("Эдриан v2\nTelegram: подключён\nTodoist: "+(env.TODOIST_API_TOKEN?"настроен":"не подключён")+
       "\nAI: "+(env.AI?"подключён":"не подключён")+"\nПамять KV: "+(env.HISTORY?"подключена":"не подключена")+
       "\nЧасовой пояс: Москва. Это не проверка доступности внешних API.");
+    return true;
+  }
+  if(direct?.operation==="last"){
+    const receipt=await kvGet(env,"last_receipt:"+ownerId);
+    await send(receipt
+      ? "Последнее подтверждённое действие:\n"+receipt.description+"\n"+receipt.at
+      : "Нет сохранённого подтверждения. Это не означает, что в Todoist нет задач.");
+    return true;
+  }
+  if(direct?.operation==="check"){
+    const findings=[];
+    findings.push("Telegram: входящий запрос принят, владелец подтверждён");
+    if(!env.TODOIST_API_TOKEN){
+      findings.push("Todoist: НЕТ API-токена");
+    }else{
+      try {
+        const tasks=await listTasks(env,env.TODOIST_PROJECT_ID||"",1);
+        findings.push("Todoist: API доступен, чтение задач успешно");
+      }catch(error){
+        findings.push("Todoist: ОШИБКА проверки — "+compact(error.message,120));
+      }
+    }
+    if(env.HISTORY){
+      try {
+        await env.HISTORY.get("last_receipt:"+ownerId);
+        findings.push("KV HISTORY: чтение доступно");
+      }catch(error){findings.push("KV HISTORY: ОШИБКА чтения");}
+    }else findings.push("KV HISTORY: не подключено");
+    findings.push("Workers AI: "+(env.AI?.run?"привязка есть (генерация не проверялась)":"не подключён"));
+    await send(findings.join("\n"));
     return true;
   }
   if(direct?.operation==="cancel"){
@@ -167,6 +242,13 @@ export async function handleAgent(env,ownerId,chatId,text,{say,telegram}) {
       if(exact.length!==1){await send("Не нашёл однозначный проект «"+requested+"». Ничего не создавал. /projects — список.");return true;}
       destination=exact[0].id;
     }
+    const duplicate=await recentMatchingTask(env,destination,plan);
+    if(duplicate){
+      await send("Новая задача НЕ создавалась: аналогичная уже есть в Todoist.\n"+
+        duplicate.content+"\nID: "+duplicate.id+
+        "\nЕсли нужно создать такую же задачу ещё раз, уточни отличающееся действие или срок.");
+      return true;
+    }
     const r=await createPlannedTask(env,plan,destination);
     const task=r.task;
     let msg="Todoist: задача создана и подтверждена.\n"+task.content+
@@ -174,6 +256,7 @@ export async function handleAgent(env,ownerId,chatId,text,{say,telegram}) {
     if(plan.remind)msg+="\nНапоминание: "+(r.reminder?"создано, push в назначенное время":"не создано");
     if(r.warning)msg+="\n"+r.warning;
     if(r.reminder)msg+="\nЗвук зависит от настроек телефона и Todoist.";
+    await saveLastReceipt(env,ownerId,{description:msg,id:String(task.id),operation:"create"});
     await send(msg);
     return true;
   }
