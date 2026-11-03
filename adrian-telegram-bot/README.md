@@ -101,3 +101,9 @@ Invoke-RestMethod -Method Post -Uri "$worker/setup" -Headers @{ Authorization = 
 - https://developers.cloudflare.com/workers/ci-cd/builds/
 - https://developers.cloudflare.com/workers-ai/
 - https://developer.todoist.com/api/v1/
+
+
+## Если Cloudflare Retry build использует старый KV ID
+
+Retry build может повторно запускать предыдущую версию репозитория. Проверь, что **новая сборка** использует последний коммит GitHub, а в ее логе в разделе Bindings указан существующий KV namespace. Нажимать Retry на старом ошибочном запуске не нужно. Последняя проверенная конфигурация находится в `wrangler.toml`.
+
