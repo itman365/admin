@@ -50,28 +50,63 @@ async function say(env, chatId, text) {
   }
 }
 
+function localISODate(now = new Date(), timezone = "Europe/Moscow") {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: timezone, year: "numeric", month: "2-digit", day: "2-digit"
+  }).formatToParts(now);
+  const get = (name) => parts.find(part => part.type === name)?.value;
+  return get("year") + "-" + get("month") + "-" + get("day");
+}
+
+function shiftISODate(iso, delta) {
+  const date = new Date(iso + "T12:00:00Z");
+  date.setUTCDate(date.getUTCDate() + delta);
+  return date.toISOString().slice(0, 10);
+}
+
+function nextWeekdayISO(dayName, now = new Date()) {
+  // 0 = Sunday, 6 = Saturday. Explicit date prevents Todoist's
+  // natural-language parser from silently losing a due date.
+  const weekdays = {
+    "воскресенье": 0, "понедельник": 1, "вторник": 2,
+    "среду": 3, "четверг": 4, "пятницу": 5, "субботу": 6
+  };
+  const target = weekdays[dayName.toLowerCase()];
+  if (target === undefined) return null;
+  const todayISO = localISODate(now);
+  const todayDay = new Date(todayISO + "T12:00:00Z").getUTCDay();
+  return shiftISODate(todayISO, (target - todayDay + 7) % 7);
+}
+
 function parseTask(text) {
   const raw = String(text || "").trim().replace(/[.?!]+$/, "");
   const divider = raw.indexOf("|");
   if (divider >= 0) {
+    // Preserve explicit dates or times provided by the user.
     return {
       due: raw.slice(0, divider).trim(),
       title: raw.slice(divider + 1).trim()
     };
   }
 
-  // The date is taken only from the beginning, so words inside a title
-  // don't accidentally become a due date.
-  const m = raw.match(/^(?:(?:на\s+выходных\s+)?(?:(?:в\s+эту\s+|в\s+|на\s+эту\s+)?(?:субботу|воскресенье|понедельник|вторник|среду|четверг|пятницу))|(?:сегодня|завтра|послезавтра))(?:\s+(?:в|к)\s+\d{1,2}(?::\d{2})?)?\s*[,:—-]?\s+(.+)$/i);
-  if (m) {
-    const title = m[1].trim();
-    const prefix = raw.slice(0, m.index + m[0].length - m[1].length).trim().replace(/[,:—-]$/, "").trim();
-    const weekday = prefix.match(/(?:субботу|воскресенье|понедельник|вторник|среду|четверг|пятницу)/i);
-    const time = prefix.match(/(?:в|к)\s+(\d{1,2}(?::\d{2})?)$/i);
-    const due = weekday ? "в " + weekday[0].toLowerCase() : prefix;
-    return { title, due: time && weekday ? due + " в " + time[1] : due };
+  const m = raw.match(/^(?:(?:на\s+выходных\s+)?(?:(?:в\s+эту\s+|в\s+следующую\s+|на\s+эту\s+|на\s+следующую\s+|в\s+|на\s+)?(?:субботу|воскресенье|понедельник|вторник|среду|четверг|пятницу))|(?:сегодня|завтра|послезавтра))(?:\s+(?:в|к)\s+\d{1,2}(?::\d{2})?)?\s*[,:—-]?\s+(.+)$/i);
+  if (!m) return { title: raw, due: null };
+  const title = m[1].trim();
+  const prefix = raw.slice(0, m[0].length - m[1].length).trim().replace(/[,:—-]$/, "").trim();
+  const weekday = prefix.match(/субботу|воскресенье|понедельник|вторник|среду|четверг|пятницу/i);
+  const time = prefix.match(/(?:в|к)\s+(\d{1,2}(?::\d{2})?)$/i);
+  const timeText = time ? time[1] : null;
+  const day = weekday
+    ? nextWeekdayISO(weekday[0])
+    : shiftISODate(localISODate(), /^послезавтра/i.test(prefix) ? 2 : /^завтра/i.test(prefix) ? 1 : 0);
+
+  if (weekday && /следующую/i.test(prefix)) {
+    // "в следующую субботу" unambiguously means a later week.
+    const thisWeek = nextWeekdayISO(weekday[0]);
+    const next = shiftISODate(thisWeek, 7);
+    return timeText ? { title, due: next + " " + timeText } : { title, dueDate: next, due: next };
   }
-  return { title: raw, due: null };
+  return timeText ? { title, due: day + " " + timeText } : { title, dueDate: day, due: day };
 }
 
 function extractTaskRequest(text) {
@@ -115,7 +150,9 @@ async function createTask(env, task) {
     return { ok: false, message: "Пустая задача. Пример: /task завтра в 10:00 | Позвонить клиенту" };
   }
   const payload = { content: task.title.slice(0, 1000) };
-  if (task.due) {
+  if (task.dueDate) {
+    payload.due_date = task.dueDate;
+  } else if (task.due) {
     payload.due_string = task.due;
     payload.due_lang = "ru";
   }
