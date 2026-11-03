@@ -208,7 +208,7 @@ test("natural-language voice task calls Todoist with weekend due date", async ()
     const task = calls.find(c => c.url.includes("api.todoist.com"));
     assert.ok(task, "The bot must call Todoist, not just the language model");
     assert.equal(task.payload.content, "закрыть подавало");
-    assert.match(task.payload.due_date, /^\\d{4}-\\d{2}-\\d{2}$/);
+    assert.match(task.payload.due_date, /^\d{4}-\d{2}-\d{2}$/);
     assert.equal(new Date(task.payload.due_date + "T12:00:00Z").getUTCDay(), 6);
     const message = calls.find(c => c.url.endsWith("/sendMessage"));
     assert.match(message.payload.text, /Todoist подтвердил создание задачи/);
