@@ -21,6 +21,10 @@ function formatList(items,title,max=25) {
     String(i+1)+". "+formatTask(t)+"\nID: "+t.id
   ).join("\n\n")+(items.length>max?"\n\nПоказаны первые "+max+".":"");
 }
+function shiftDate(day,offset){
+  const d=new Date(day+"T12:00:00Z");d.setUTCDate(d.getUTCDate()+offset);
+  return d.toISOString().slice(0,10);
+}
 function pendingKey(ownerId){return "pending:"+ownerId;}
 function parseSimpleCommand(text) {
   const cmd=String(text||"").trim();
@@ -28,6 +32,10 @@ function parseSimpleCommand(text) {
   if(/^\/today(?:@\w+)?\s*$/i.test(cmd))return {operation:"list",date:moscowDate()};
   if(/^\/(?:projects)(?:@\w+)?\s*$/i.test(cmd))return {operation:"projects"};
   if(/^\/(?:digest|brief)(?:@\w+)?\s*$/i.test(cmd))return {operation:"digest"};
+  if(/^\/week(?:@\w+)?\s*$/i.test(cmd))return {operation:"week"};
+  if(/^\/overdue(?:@\w+)?\s*$/i.test(cmd))return {operation:"overdue"};
+  const search=cmd.match(/^\/find(?:@\w+)?\s+(.+)$/i);
+  if(search)return {operation:"find",query:search[1]};
   if(/^\/(?:status)(?:@\w+)?\s*$/i.test(cmd))return {operation:"status"};
   if(/^\/(?:notes)(?:@\w+)?\s*$/i.test(cmd))return {operation:"notes"};
   if(/^\/(?:cancel)(?:@\w+)?\s*$/i.test(cmd))return {operation:"cancel"};
@@ -89,6 +97,17 @@ export async function handleAgent(env,ownerId,chatId,text,{say,telegram}) {
   if(direct?.operation==="projects"){
     const projects=await listProjects(env);
     await send("Проекты Todoist:\n"+projects.slice(0,50).map(p=>"- "+p.name+" (ID "+p.id+")").join("\n"));
+    return true;
+  }
+  if(direct?.operation==="week"||direct?.operation==="overdue"||direct?.operation==="find"){
+    const tasks=await listTasks(env,"",200);
+    const today=moscowDate(),end=shiftDate(today,7);
+    let selected=[];
+    if(direct.operation==="week")selected=tasks.filter(t=>t.due?.date && String(t.due.date).slice(0,10)>=today && String(t.due.date).slice(0,10)<=end);
+    if(direct.operation==="overdue")selected=tasks.filter(t=>t.due?.date && String(t.due.date).slice(0,10)<today);
+    if(direct.operation==="find")selected=tasks.filter(t=>String(t.content).toLowerCase().includes(direct.query.toLowerCase()));
+    selected.sort((a,b)=>String(a.due?.date||"9999").localeCompare(String(b.due?.date||"9999")));
+    await send(formatList(selected,direct.operation==="week"?"Ближайшие 7 дней":direct.operation==="overdue"?"Просроченные задачи":"Поиск: "+direct.query,30));
     return true;
   }
   if(direct?.operation==="list"||direct?.operation==="digest"){
