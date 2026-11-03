@@ -8,6 +8,7 @@ binding = "AI"
 # The numeric owner ID isn't a secret; source-control it so redeploys keep access.
 [vars]
 OWNER_TELEGRAM_ID = "751924427"
+TODOIST_PROJECT_ID = "6hv9m5hM3qv5p7C8"
 
 # A KV namespace created in Cloudflare dashboard for chat context.
 [[kv_namespaces]]
