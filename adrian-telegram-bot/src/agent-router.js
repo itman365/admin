@@ -34,6 +34,8 @@ function parseSimpleCommand(text) {
   if(/^\/confirm(?:@\w+)?\s*$/i.test(cmd))return {operation:"confirm"};
   const note=cmd.match(/^\/note(?:@\w+)?\s+([\s\S]+)$/i);
   if(note)return {operation:"note",body:note[1]};
+  const memory=cmd.match(/^(?:(?:эдриан|адриан|андрей)\s*[,!:—-]\s*)?запомни(?:\s+мне)?\s*[,!:—-]?\s*(.+)$/i);
+  if(memory)return {operation:"note",body:memory[1]};
   const done=cmd.match(/^\/done(?:@\w+)?\s+(.+)$/i);
   if(done)return {operation:"complete",target:done[1]};
   const remove=cmd.match(/^\/delete(?:@\w+)?\s+(.+)$/i);
