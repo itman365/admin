@@ -46,8 +46,16 @@ function mockApis() {
     if (url.includes("/file/bot")) {
       return new Response(Uint8Array.from([79, 103, 103, 83]));
     }
+    if (url.includes("api.todoist.com/api/v1/reminders")) {
+      return Response.json({ id: "REMINDER-1", task_id: payload.task_id });
+    }
     if (url.includes("api.todoist.com")) {
-      return Response.json({ id: "TASK-1" });
+      return Response.json({
+        id: "TASK-1",
+        due: payload.due_datetime ? { date: payload.due_datetime } :
+          payload.due_date ? { date: payload.due_date } :
+          payload.due_string ? { date: "2026-11-04" } : null
+      });
     }
     return Response.json({ ok: true, result: true });
   };
@@ -109,7 +117,8 @@ test("owner can create a scheduled Todoist task", async () => {
     const task = calls.find(c => c.url.includes("api.todoist.com"));
     assert.equal(task.payload.content, "Позвонить Андрею");
     assert.equal(task.payload.project_id, "PROJECT");
-    assert.equal(task.payload.due_string, "завтра в 10:00");
+    assert.ok(task.payload.due_datetime, "Explicit clock time must be included");
+    assert.match(task.payload.due_datetime, /T07:00:00/);
   } finally { restore(); }
 });
 
@@ -291,5 +300,59 @@ test("voice task 'на субботу' has due_date separate from task title", a
     assert.match(task.payload.due_date, /^\d{4}-\d{2}-\d{2}$/);
     assert.equal(new Date(task.payload.due_date + "T12:00:00Z").getUTCDay(), 6);
     assert.ok(!("due_string" in task.payload));
+  } finally { restore(); }
+});
+
+
+test("voice 'сегодня в 9.05 по Москве' creates 09:05 Moscow deadline and push reminder", async () => {
+  const { calls, restore } = mockApis();
+  try {
+    const c = ctx();
+    const customEnv = {
+      ...baseEnv,
+      AI: {
+        async run(model) {
+          if (model.includes("whisper")) {
+            return {
+              text: "Эдриан, поставь задачу в Тудуист сегодня в 9.05 по Москве заехать к Хачатуру и заплатить за дерево чтобы было звуковое уведомление."
+            };
+          }
+          throw new Error("Do not call conversational model for a task");
+        }
+      }
+    };
+    const update = { update_id: 55, message: {
+      from: { id: 123 }, chat: { id: 123, type: "private" },
+      voice: { file_id: "VOICE_MOSCOW", file_size: 100 }
+    } };
+    await worker.fetch(event(update), customEnv, c);
+    await Promise.all(c.promises);
+    const task = calls.find(x => x.url.includes("api.todoist.com/api/v1/tasks"));
+    assert.ok(task, "Must create real Todoist task");
+    assert.equal(task.payload.content, "заехать к Хачатуру и заплатить за дерево");
+    assert.match(task.payload.due_datetime, /T06:05:00/);
+    const reminder = calls.find(x => x.url.includes("api.todoist.com/api/v1/reminders"));
+    assert.ok(reminder, "A requested reminder must be sent to Todoist");
+    assert.equal(reminder.payload.minute_offset, 0);
+    assert.equal(reminder.payload.service, "push");
+    assert.equal(reminder.payload.task_id, "TASK-1");
+    const msg = calls.find(x => x.url.endsWith("/sendMessage")).payload.text;
+    assert.match(msg, /Push-напоминание создано/);
+  } finally { restore(); }
+});
+
+test("bare 9.05 today is not embedded into task title", async () => {
+  const { calls, restore } = mockApis();
+  try {
+    const c = ctx();
+    const update = { update_id: 56, message: {
+      from: { id: 123 }, chat: { id: 123, type: "private" },
+      text: "Поставь задачу: сегодня в 9.05 заехать к Хачатуру"
+    } };
+    await worker.fetch(event(update), baseEnv, c);
+    await Promise.all(c.promises);
+    const task = calls.find(x => x.url.includes("api.todoist.com/api/v1/tasks"));
+    assert.equal(task.payload.content, "заехать к Хачатуру");
+    assert.match(task.payload.due_datetime, /T06:05:00/);
   } finally { restore(); }
 });
