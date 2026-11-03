@@ -1,6 +1,6 @@
 name = "adrian-telegram-bot"
 main = "src/index.js"
-compatibility_date = "2026-11-04"
+compatibility_date = "2026-10-30"
 
 [ai]
 binding = "AI"
