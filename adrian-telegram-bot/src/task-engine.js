@@ -36,6 +36,10 @@ export function safePlan(candidate,text,today=moscowDate()) {
   }
   if(date && date<today)return invalid("Названная дата уже прошла");
   if(time && (!/^([01]\d|2[0-3]):[0-5]\d$/.test(time)||!date))return invalid("Не удалось определить дату и точное время");
+  // "Создай пост/сценарий/сайт" is content creation, not a Todoist task.
+  if(op==="create" && /(?:создай|напиши|придумай|сделай)\s+(?:мне\s+)?(?:пост|реклам|текст|сценар|оффер|лендинг|сайт|промпт|промт)/i.test(text) &&
+     !/(?:поставь|создай|добавь)\s+(?:мне\s+)?задачу/i.test(text))
+    return {operation:"chat",ambiguous:false};
   if(op==="create"&&!title)return invalid("Не расслышал действие");
   if(op==="create"&&remind&&!time)return invalid("Для напоминания нужно точное время");
   if(["complete","reschedule","delete"].includes(op)&&!target)return invalid("Неясно, какую задачу изменять");
