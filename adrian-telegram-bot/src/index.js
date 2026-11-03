@@ -78,6 +78,25 @@ function nextWeekdayISO(dayName, now = new Date()) {
   return shiftISODate(todayISO, (target - todayDay + 7) % 7);
 }
 
+function normalizeTaskAction(raw) {
+  let title = String(raw || "").trim().replace(/^[,;:—\s]+/, "");
+  // "напомни, чтобы я оплатил дороги" -> "оплатить дороги"
+  const purpose = title.match(/^(?:чтоб|чтобы)\s+(?:я\s+)?(оплатил|заплатил|купил|сделал|позвонил|заехал|проверил|отправил|забрал|заказал|передал)\s+(.+)$/i);
+  if (purpose) {
+    const verbs = {
+      "оплатил": "Оплатить", "заплатил": "Заплатить", "купил": "Купить",
+      "сделал": "Сделать", "позвонил": "Позвонить", "заехал": "Заехать",
+      "проверил": "Проверить", "отправил": "Отправить", "забрал": "Забрать",
+      "заказал": "Заказать", "передал": "Передать"
+    };
+    title = verbs[purpose[1].toLowerCase()] + " " + purpose[2];
+  } else if (/^чтоб(?:ы)?\s/i.test(title)) {
+    // Do not save a malformed subordinate clause as a task.
+    return { title: title, needsClarification: true };
+  }
+  return { title, needsClarification: false };
+}
+
 function parseTask(text, now = new Date()) {
   let raw = String(text || "").trim().replace(/[.?!]+$/, "");
   const wantsReminder = /напомни|напоминани|уведомлен|звуков|сигнал|пилик|оповещен/i.test(raw);
@@ -112,8 +131,10 @@ function parseTask(text, now = new Date()) {
   }
 
   // Handle "сегодня в 9.05", "на сегодня 9:05", "в 905", and "9.05 по Москве".
-  const clock = raw.match(/^(?:(?:часов|часа|час)\s+)?(?:(?:в|к|на)\s+)?(\d{1,2})(?:[.:](\d{1,2}))?(?:\s*(?:часов|часа|ч))?(?:\s*(?:по\s+Москве|по\s+московскому\s+времени|МСК))?(?:\s*(?:дня|утра|вечера|ночи))?(?=[\s,;:.—-]|$)/i) ||
-    raw.match(/^(?:(?:часов|часа|час)\s+)?(?:(?:в|к|на)\s+)?(\d{3,4})(?:\s*(?:по\s+Москве|МСК))?(?:\s*(?:дня|утра|вечера|ночи))?(?=[\s,;:.—-]|$)/i);
+  // Accept natural spoken qualifier order:
+  // "в 12.30 днём по Москве", "часов на 11 по Москве дня", "в 905".
+  const clock = raw.match(/^(?:(?:часов|часа|час)\s+)?(?:(?:в|к|на)\s+)?(\d{1,2})(?:[.:](\d{1,2}))?(?:\s*(?:часов|часа|ч))?(?:\s+(?:по\s+Москве|по\s+московскому\s+времени|МСК|дн[её]м|дня|утра|вечера|ночи)){0,3}(?=[\s,;:.—-]|$)/i) ||
+    raw.match(/^(?:(?:часов|часа|час)\s+)?(?:(?:в|к|на)\s+)?(\d{3,4})(?:\s+(?:по\s+Москве|по\s+московскому\s+времени|МСК|дн[её]м|дня|утра|вечера|ночи)){0,3}(?=[\s,;:.—-]|$)/i);
   let clockValue = null;
   if (clock) {
     const digits = clock[1];
@@ -130,7 +151,11 @@ function parseTask(text, now = new Date()) {
   // The action is the title; date, time and destination are NEVER saved in it.
   const suspiciousSchedule = /^(?:(?:на|в)\s+)?(?:сегодня|завтра|послезавтра)(?=[\s,;:.—-]|$)|^(?:(?:часов|часа|час)\s+)?(?:в|к|на)\s+\d+(?=[\s,;:.—-]|$)/i;
   if (suspiciousSchedule.test(raw)) return { title: raw, needsClarification: true, wantsReminder };
-  const title = raw.trim();
+  const action = normalizeTaskAction(raw);
+  const title = action.title;
+  if (action.needsClarification) {
+    return { title, wantsReminder, needsClarification: true };
+  }
   if (!title) return { title: "", wantsReminder };
   if (!day) return { title, due: null, wantsReminder };
   if (!clockValue) return { title, due: day, dueDate: day, wantsReminder };
@@ -143,14 +168,23 @@ function parseTask(text, now = new Date()) {
 
 function extractTaskRequest(text) {
   if (isCommand(text, "task")) {
-    return { raw: text.replace(/^\/task(?:@\w+)?\s*/i, "") };
+    return { raw: text.replace(/^\/task(?:@\w+)?\s*/i, ""), forceReminder: false };
   }
-  const cleaned = String(text || "").trim()
-    .replace(/^(?:(?:так|ну|эдриан|слушай)[\s,!.:—-]+)+/i, "");
+  const original = String(text || "").trim();
+  // Whisper can mishear the wake name ("Андрей" instead of "Эдриан").
+  // Don't correct the name in an actionable instruction; strip vocatives.
+  const cleaned = original
+    .replace(/^(?:(?:так|ну|слушай|эдриан|адриан|андрей)\s*[,!.:—-]*\s+)+/i, "")
+    .replace(/^[А-ЯЁ][а-яё]+\s*[,!:—-]\s*(?=(?:напомни|поставь|создай|добавь|запиши|внеси)\b)/iu, "")
+    .trim();
   const direct = cleaned.match(/^задача\s*[:—-]\s*(.*)$/i);
-  if (direct) return { raw: direct[1] };
+  if (direct) return { raw: direct[1], forceReminder: false };
+
+  const reminder = cleaned.match(/^(?:напомни(?:-ка)?|напомнить|сделай\s+напоминание|не\s+дай\s+мне\s+забыть)(?:\s+(?:мне|пожалуйста))?[\s,:—-]*(.+)$/i);
+  if (reminder) return { raw: reminder[1], forceReminder: true };
+
   const imperative = cleaned.match(/^(?:поставь|добавь|создай|запиши|внеси|закинь)(?:\s+\S+){0,12}?\s+(?:задачу|задачку)\s*[:—-]?\s*(.*)$/i);
-  return imperative ? { raw: imperative[1] } : null;
+  return imperative ? { raw: imperative[1], forceReminder: false } : null;
 }
 
 async function rememberTaskReceipt(env, userId, data) {
@@ -416,13 +450,17 @@ async function processMessage(env, update) {
   const request = extractTaskRequest(text);
   if (request) {
     const task = parseTask(request.raw);
-    task.wantsReminder = task.wantsReminder || /напомни|напоминани|уведомлен|звуков|сигнал|пилик|оповещен/i.test(text);
+    task.wantsReminder = task.wantsReminder || request.forceReminder || /напомни|напоминани|уведомлен|звуков|сигнал|пилик|оповещен/i.test(text);
     if (task.needsClarification) {
       await say(env, chatId, "Не удалось разобрать дату или время. Задача НЕ создана. Повтори: «Сегодня в 11:00 купить Виктору свёрла и перо».");
       return;
     }
     if (!task.title) {
       await say(env, chatId, "Не расслышал название задачи. Скажи ещё раз: «Поставь задачу: позвонить Андрею».");
+      return;
+    }
+    if (task.wantsReminder && !task.dueDateTime) {
+      await say(env, chatId, "Это напоминание, но я не разобрал точную дату и время. Ничего не создавал. Скажи: «Напомни сегодня в 12:30 оплатить платные дороги».");
       return;
     }
     let result;
