@@ -3,8 +3,9 @@
 
 import {handleAgent,handleAgentCallback} from "./agent-router.js";
 import {generateWithGemini} from "./gemini-provider.js";
+import {handleRoleAgent} from "./role-agents.js";
 
-const VERSION = "2.1.0";
+const VERSION = "2.2.0";
 const CHAT_MODEL = "@cf/zai-org/glm-4.7-flash";
 const SPEECH_MODEL = "@cf/openai/whisper-large-v3-turbo";
 const MAX_VOICE_BYTES = 4 * 1024 * 1024;
@@ -456,6 +457,7 @@ async function processMessage(env, update) {
       "/status — диагностика подключений\n" +
       "/check — проверить подключение Todoist\n" +
       "/checkai — проверить живой ответ Gemini API\n" +
+      "/agents — три агента; /ksb, /cito, /dev — роль + запрос\n" +
       "/last — последнее подтверждение\n" +
       "/reset — стереть краткую историю переписки\n" +
       "/id — узнать свой Telegram ID\n" +
@@ -482,6 +484,9 @@ async function processMessage(env, update) {
     await say(env, chatId, "Сообщение слишком длинное. Раздели его на части.");
     return;
   }
+
+  const roleHandled = await handleRoleAgent(env,userId,chatId,text,{say,telegram});
+  if (roleHandled) return;
 
   const newAgentHandled = await handleAgent(env,userId,chatId,text,{say,telegram});
   if (newAgentHandled) return;
