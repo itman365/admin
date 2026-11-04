@@ -79,3 +79,39 @@ test("Worker falls back to existing Workers AI chat if Gemini free quota is reac
     assert.ok(out.every(t=>!t.includes("PRIVATE_FAKE_KEY")));
   } finally{globalThis.fetch=original;}
 });
+
+test("owner-only /checkai performs a real Gemini request and confirms response", async()=>{
+  const original=globalThis.fetch;
+  let gemini=0;
+  const sent=[];
+  globalThis.fetch=async(url,opts={})=>{
+    const address=String(url);
+    if(address.includes("generativelanguage.googleapis.com")){
+      gemini++;
+      assert.equal(opts.headers["x-goog-api-key"],"TEST_GEMINI");
+      return Response.json({candidates:[{content:{parts:[{text:"ГОТОВО"}]}}]});
+    }
+    if(address.endsWith("/sendMessage")){
+      sent.push(JSON.parse(opts.body).text);
+      return Response.json({ok:true,result:true});
+    }
+    throw Error("Unexpected HTTP: "+address);
+  };
+  try{
+    const env={TELEGRAM_BOT_TOKEN:"TEST_BOT",TELEGRAM_WEBHOOK_SECRET:"TEST_SECRET",
+      OWNER_TELEGRAM_ID:"123",GEMINI_API_KEY:"TEST_GEMINI",GEMINI_MODEL:"gemini-3.5-flash-lite"};
+    for(const [from,id] of [[123,901],[999,902]]){
+      const pending=[];
+      const req=new Request("https://worker.example/webhook",{method:"POST",headers:{"x-telegram-bot-api-secret-token":"TEST_SECRET"},
+        body:JSON.stringify({update_id:id,message:{from:{id:from},chat:{id:from,type:"private"},text:"/checkai"}})});
+      const res=await worker.fetch(req,env,{waitUntil:p=>pending.push(p)});
+      assert.equal(res.status,200);
+      await Promise.all(pending);
+    }
+    assert.equal(gemini,1);
+    assert.match(sent[0],/реальный запрос выполнен успешно/);
+    assert.match(sent[0],/ГОТОВО/);
+    assert.match(sent[1],/Закрытый бот/);
+    assert.ok(!sent.some(text=>text.includes("TEST_GEMINI")));
+  } finally{globalThis.fetch=original;}
+});
