@@ -30,5 +30,3 @@ test("spoken reminder creates verified Todoist task and push", async () => {
   assert.ok(calls.some(c=>c.endpoint.endsWith("/sendMessage")&&c.payload.text.includes("задача создана и подтверждена")));
  } finally { globalThis.fetch=prior; }
 });
-
-[executed on device: MSI (f4bae329-0864-4381-bcba-d34ec4443a6f)]

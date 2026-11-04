@@ -331,5 +331,3 @@ export async function handleAgentCallback(env,query,{say,telegram}){
   }
   return true;
 }
-
-[executed on device: MSI (f4bae329-0864-4381-bcba-d34ec4443a6f)]
