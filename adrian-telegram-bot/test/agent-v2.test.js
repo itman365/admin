@@ -115,11 +115,12 @@ test("delete cancellation never hits Todoist delete API",async()=>{
 test("natural plan creates and confirms push reminder",async()=>{
   const h=harness();
   try{
-    h.plan({operation:"create",title:"Оплатить платные дороги",target:"",date:"2026-11-04",time:"12:30",remind:true,priority:4});
-    const reply=await h.send("Эдриан, напомни сегодня в 12:30 оплатить платные дороги");
+    const day=new Date(Date.now()+3*86400000).toISOString().slice(0,10);
+    h.plan({operation:"create",title:"Оплатить платные дороги",target:"",date:day,time:"12:30",remind:true,priority:4});
+    const reply=await h.send("Эдриан, напомни "+day+" в 12:30 оплатить платные дороги");
     assert.match(reply,/задача создана и подтверждена/);
     assert.match(reply,/Напоминание: создано/);
-    assert.ok(h.calls.some(c=>c.url.endsWith("/api/v1/tasks")&&c.body.due_datetime==="2026-11-04T09:30:00.000Z"));
+    assert.ok(h.calls.some(c=>c.url.endsWith("/api/v1/tasks")&&c.body.due_datetime===new Date(day+"T12:30:00+03:00").toISOString()));
     assert.ok(h.calls.some(c=>c.url.endsWith("/api/v1/reminders")));
   }finally{h.restore();}
 });
@@ -199,3 +200,5 @@ test("last reports only a verified creation receipt",async()=>{
     assert.match(reply,/Подготовить рекламу/);
   }finally{h.restore();}
 });
+
+[executed on device: MSI (f4bae329-0864-4381-bcba-d34ec4443a6f)]
