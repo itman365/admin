@@ -108,5 +108,3 @@ export async function extractPlan(env,text,now=new Date()) {
     return safePlan(parseJson(modelText(r)),text,today);
   } catch(e) { console.error("Workers parser unavailable:",String(e.message||e).slice(0,90)); return null; }
 }
-
-[executed on device: MSI (f4bae329-0864-4381-bcba-d34ec4443a6f)]
