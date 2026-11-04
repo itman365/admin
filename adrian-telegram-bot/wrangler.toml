@@ -9,6 +9,7 @@ binding = "AI"
 [vars]
 OWNER_TELEGRAM_ID = "751924427"
 TODOIST_PROJECT_ID = "6hv9m5hM3qv5p7C8"
+GEMINI_MODEL = "gemini-3.5-flash-lite"
 
 # A KV namespace created in Cloudflare dashboard for chat context.
 [[kv_namespaces]]
@@ -17,3 +18,5 @@ id = "c95882190e72499fa9a0b15fc502d731"
 
 # Keep TELEGRAM_BOT_TOKEN and TELEGRAM_WEBHOOK_SECRET only as Cloudflare
 # runtime Secrets; NEVER copy them into this file.
+
+[executed on device: MSI (f4bae329-0864-4381-bcba-d34ec4443a6f)]
