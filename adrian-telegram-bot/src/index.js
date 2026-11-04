@@ -562,6 +562,16 @@ async function processUpdate(env, update) {
 export default {
   async fetch(request, env, ctx) {
     const path = new URL(request.url).pathname;
+    // TEMPORARY DIAGNOSTIC — immediately removed after checking Gemini free-tier connectivity.
+    if (path === "/__ai_smoke_8dL2RYsz27UTzO8D-0NfverTO1qtqF-v9eAqxa8Gj504cBTY" && request.method === "POST") {
+      if (!env.GEMINI_API_KEY) return json({ok:false,reason:"secret_not_configured"},503);
+      try {
+        const reply = await generateWithGemini(env,[{role:"user",content:"Ответь только одним словом: ГОТОВО"}],{maxOutputTokens:700});
+        return json({ok:typeof reply==="string" && reply.length>0,model:String(env.GEMINI_MODEL||""),responseLength:reply.length});
+      } catch(error) {
+        return json({ok:false,error:String(error?.message||error).slice(0,120)},502);
+      }
+    }
     if (path === "/health" && request.method === "GET") {
       return json({ ok: true, service: "adrian-telegram-bot", version: VERSION });
     }
