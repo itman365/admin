@@ -18,5 +18,3 @@ id = "c95882190e72499fa9a0b15fc502d731"
 
 # Keep TELEGRAM_BOT_TOKEN and TELEGRAM_WEBHOOK_SECRET only as Cloudflare
 # runtime Secrets; NEVER copy them into this file.
-
-[executed on device: MSI (f4bae329-0864-4381-bcba-d34ec4443a6f)]
