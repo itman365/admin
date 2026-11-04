@@ -3,7 +3,7 @@
 
 import {handleAgent,handleAgentCallback} from "./agent-router.js";
 
-const VERSION = "2.0.0";
+const VERSION = "2.0.1";
 const CHAT_MODEL = "@cf/zai-org/glm-4.7-flash";
 const SPEECH_MODEL = "@cf/openai/whisper-large-v3-turbo";
 const MAX_VOICE_BYTES = 4 * 1024 * 1024;
