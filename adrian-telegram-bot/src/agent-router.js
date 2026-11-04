@@ -1,4 +1,5 @@
 import {extractPlan, hasTaskIntent, moscowDate, safePlan} from "./task-engine.js";
+import {generateWithGemini} from "./gemini-provider.js";
 import {listTasks,listProjects,createPlannedTask,formatTask,matchTask,closeTask,rescheduleTask,removeTask} from "./todoist-api.js";
 
 function compact(s,max=300){return String(s||"").trim().slice(0,max);}
@@ -38,6 +39,7 @@ function parseSimpleCommand(text) {
   if(search)return {operation:"find",query:search[1]};
   if(/^\/(?:status)(?:@\w+)?\s*$/i.test(cmd))return {operation:"status"};
   if(/^\/check(?:@\w+)?\s*$/i.test(cmd))return {operation:"check"};
+  if(/^\/checkai(?:@\w+)?\s*$/i.test(cmd))return {operation:"checkai"};
   if(/^\/last(?:@\w+)?\s*$/i.test(cmd))return {operation:"last"};
   if(/^\/(?:notes)(?:@\w+)?\s*$/i.test(cmd))return {operation:"notes"};
   if(/^\/(?:cancel)(?:@\w+)?\s*$/i.test(cmd))return {operation:"cancel"};
@@ -112,6 +114,25 @@ export async function handleAgent(env,ownerId,chatId,text,{say,telegram}) {
     await send(receipt
       ? "Последнее подтверждённое действие:\n"+receipt.description+"\n"+receipt.at
       : "Нет сохранённого подтверждения. Это не означает, что в Todoist нет задач.");
+    return true;
+  }
+  if(direct?.operation==="checkai") {
+    if (!env.GEMINI_API_KEY) {
+      await send("Gemini API: секрет GEMINI_API_KEY отсутствует. Реальная проверка не выполнялась.");
+      return true;
+    }
+    try {
+      const reply = await generateWithGemini(env,[
+        {role:"user",content:"Ответь ровно одним словом: ГОТОВО"}
+      ],{maxOutputTokens:700});
+      await send("Gemini API: реальный запрос выполнен успешно.\n"+
+        "Модель: "+compact(env.GEMINI_MODEL||"gemini-3.5-flash-lite",80)+
+        "\nОтвет: "+compact(reply,120));
+    } catch(error) {
+      await send("Gemini API: реальная проверка НЕ прошла. "+
+        compact(error?.message||error,120)+
+        "\nWorkers AI остаётся резервной моделью.");
+    }
     return true;
   }
   if(direct?.operation==="check"){
