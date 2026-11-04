@@ -103,7 +103,7 @@ export async function handleAgent(env,ownerId,chatId,text,{say,telegram}) {
   const send=(msg)=>say(env,chatId,msg);
   if(direct?.operation==="status") {
     await send("Эдриан v2\nTelegram: подключён\nTodoist: "+(env.TODOIST_API_TOKEN?"настроен":"не подключён")+
-      "\nAI: "+(env.AI?"подключён":"не подключён")+"\nПамять KV: "+(env.HISTORY?"подключена":"не подключена")+
+      "\nWorkers AI: "+(env.AI?"подключён":"не подключён")+"\nGemini API: "+(env.GEMINI_API_KEY?"ключ настроен":"не настроен")+"\nПамять KV: "+(env.HISTORY?"подключена":"не подключена")+
       "\nЧасовой пояс: Москва. Это не проверка доступности внешних API.");
     return true;
   }
@@ -134,6 +134,7 @@ export async function handleAgent(env,ownerId,chatId,text,{say,telegram}) {
       }catch(error){findings.push("KV HISTORY: ОШИБКА чтения");}
     }else findings.push("KV HISTORY: не подключено");
     findings.push("Workers AI: "+(env.AI?.run?"привязка есть (генерация не проверялась)":"не подключён"));
+    findings.push("Gemini API: "+(env.GEMINI_API_KEY?"ключ настроен (генерация не проверялась)":"не настроен"));
     await send(findings.join("\n"));
     return true;
   }
@@ -330,3 +331,5 @@ export async function handleAgentCallback(env,query,{say,telegram}){
   }
   return true;
 }
+
+[executed on device: MSI (f4bae329-0864-4381-bcba-d34ec4443a6f)]
