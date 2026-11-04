@@ -43,5 +43,3 @@ export async function generateWithGemini(env, messages, { json = false, maxOutpu
   if (!result) throw new Error("Gemini returned empty content");
   return result;
 }
-
-[executed on device: MSI (f4bae329-0864-4381-bcba-d34ec4443a6f)]
