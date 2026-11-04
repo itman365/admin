@@ -79,5 +79,3 @@ test("Worker falls back to existing Workers AI chat if Gemini free quota is reac
     assert.ok(out.every(t=>!t.includes("PRIVATE_FAKE_KEY")));
   } finally{globalThis.fetch=original;}
 });
-
-[executed on device: MSI (f4bae329-0864-4381-bcba-d34ec4443a6f)]
