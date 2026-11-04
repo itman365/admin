@@ -1,3 +1,4 @@
+import {generateWithGemini} from "./gemini-provider.js";
 // Intent planning is separate from execution. LLM output never directly authorizes arbitrary API calls.
 const MODEL = "@cf/zai-org/glm-4.7-flash";
 export function moscowDate(now = new Date()) {
@@ -35,6 +36,25 @@ export function safePlan(candidate,text,today=moscowDate()) {
        parsed.toISOString().slice(0,10)!==date) return invalid("Некорректная дата");
   }
   if(date && date<today)return invalid("Названная дата уже прошла");
+  // Cross-check model-generated dates against explicit Russian scheduling cues.
+  if(op==="create" && /кажд(?:ый|ую|ое)|ежедневно|еженедельно|раз в неделю|по будням/i.test(text))
+    return invalid("Повторяющийся срок пока не поддерживается автоматически");
+  if(date) {
+    const next = (offset) => {
+      const d = new Date(today+"T12:00:00Z");
+      d.setUTCDate(d.getUTCDate()+offset);
+      return d.toISOString().slice(0,10);
+    };
+    const relative = /послезавтра/i.test(text) ? 2 :
+      /(?:^|[^а-яё])завтра(?:[^а-яё]|$)/i.test(text) ? 1 :
+      /сегодня/i.test(text) ? 0 : null;
+    if(relative !== null && date !== next(relative))
+      return invalid("Дата не соответствует слову «сегодня», «завтра» или «послезавтра»");
+    const names = [["воскресенье","воскресенья"],["понедельник","понедельника"],["вторник","вторника"],["среду","среда"],["четверг","четверга"],["пятницу","пятница"],["субботу","суббота"]];
+    const weekday = names.findIndex(arr => arr.some(n => text.toLowerCase().includes(n)));
+    if(weekday !== -1 && new Date(date+"T12:00:00Z").getUTCDay() !== weekday)
+      return invalid("Дата не совпадает с названным днём недели");
+  }
   if(time && (!/^([01]\d|2[0-3]):[0-5]\d$/.test(time)||!date))return invalid("Не удалось определить дату и точное время");
   // "Создай пост/сценарий/сайт" is content creation, not a Todoist task.
   if(op==="create" && /(?:создай|напиши|придумай|сделай)\s+(?:мне\s+)?(?:пост|реклам|текст|сценар|оффер|лендинг|сайт|промпт|промт)/i.test(text) &&
@@ -56,7 +76,7 @@ export function duePayload(p) {
   return Number.isNaN(time.valueOf())?{}:{due_datetime:time.toISOString()};
 }
 export async function extractPlan(env,text,now=new Date()) {
-  if(!env.AI?.run)return null;
+  if(!env.AI?.run && !env.GEMINI_API_KEY)return null;
   const today=moscowDate(now);
   const system=[
    "Ты парсер команд пользователя. Верни только JSON: operation (create/list/complete/reschedule/delete/chat/unknown), title, target, date, time, remind, priority, ambiguous, reason.",
@@ -69,12 +89,24 @@ export async function extractPlan(env,text,now=new Date()) {
    "target = существующая задача при изменении/удалении; иначе пусто.",
    "Если не понял — operation unknown, ambiguous true. Не утверждай о выполнении действий."
   ].join(" ");
+  const messages=[{role:"system",content:system},{role:"user",content:String(text).slice(0,3000)}];
+  if(env.GEMINI_API_KEY) {
+    try {
+      const fromGemini = parseJson(await generateWithGemini(env,messages,{json:true,maxOutputTokens:900}));
+      if(fromGemini) return safePlan(fromGemini,text,today);
+    } catch(error) {
+      console.warn("Gemini parser unavailable; falling back to Workers AI:",String(error.message||error).slice(0,90));
+    }
+  }
+  if(!env.AI?.run)return null;
   try {
     const r=await env.AI.run(MODEL,{
-      messages:[{role:"system",content:system},{role:"user",content:String(text).slice(0,3000)}],
+      messages,
       max_completion_tokens:750,chat_template_kwargs:{enable_thinking:false},
       response_format:{type:"json_object"},temperature:0
     });
     return safePlan(parseJson(modelText(r)),text,today);
-  } catch(e) { console.error("Planner failed:",String(e)); return null; }
+  } catch(e) { console.error("Workers parser unavailable:",String(e.message||e).slice(0,90)); return null; }
 }
+
+[executed on device: MSI (f4bae329-0864-4381-bcba-d34ec4443a6f)]

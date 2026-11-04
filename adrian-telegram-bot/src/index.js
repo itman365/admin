@@ -2,8 +2,9 @@
 // Runtime secrets are set in Cloudflare. Never commit them to GitHub.
 
 import {handleAgent,handleAgentCallback} from "./agent-router.js";
+import {generateWithGemini} from "./gemini-provider.js";
 
-const VERSION = "2.0.1";
+const VERSION = "2.1.0";
 const CHAT_MODEL = "@cf/zai-org/glm-4.7-flash";
 const SPEECH_MODEL = "@cf/openai/whisper-large-v3-turbo";
 const MAX_VOICE_BYTES = 4 * 1024 * 1024;
@@ -18,6 +19,7 @@ const SYSTEM_PROMPT = [
   "Если контекста не хватает, честно уточни; не придумывай факты и сделанные действия.",
   "Для Todoist есть /task, список команд — /help.",
   "Ты никогда не создаёшь задачи и не вызываешь внешние сервисы самостоятельно.",
+  "Планирование и факт действий проверяются кодом; доступен Gemini API на бесплатной квоте с резервом Workers AI.",
   "Задачи создаёт отдельная программа до обращения к тебе; не говори «задача создана», «записал», «отправил», «сделано» без подтверждённого результата внешнего сервиса.",
   "Не выдумывай тарифы, правила конфиденциальности и отсутствие хранения записей. Если не знаешь — скажи об этом."
 ].join(" ");
@@ -370,7 +372,14 @@ async function askAI(env, userId, prompt) {
   // entirely on reasoning, leaving assistant content empty. Disable thinking.
   let clean = "";
   let primaryError = null;
-  try {
+  if (env.GEMINI_API_KEY) {
+    try {
+      clean = await generateWithGemini(env, messages, {maxOutputTokens:1200});
+    } catch(error) {
+      console.warn("Gemini chat unavailable; fallback enabled:",String(error.message||error).slice(0,90));
+    }
+  }
+  if (!clean && env.AI?.run) try {
     const response = await env.AI.run(CHAT_MODEL, {
       messages,
       max_completion_tokens: 1100,
@@ -384,7 +393,7 @@ async function askAI(env, userId, prompt) {
   }
 
   // One fallback keeps the bot responsive if the primary returns an empty answer.
-  if (!clean) {
+  if (!clean && env.AI?.run) {
     try {
       const response = await env.AI.run("@cf/google/gemma-4-26b-a4b-it", {
         messages,
@@ -590,3 +599,5 @@ export default {
     return new Response("Not found", { status: 404 });
   }
 };
+
+[executed on device: MSI (f4bae329-0864-4381-bcba-d34ec4443a6f)]
