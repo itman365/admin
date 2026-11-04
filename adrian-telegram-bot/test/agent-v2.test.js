@@ -162,3 +162,40 @@ test("unauthorized Telegram user cannot access task data",async()=>{
     assert.equal(h.calls.some(c=>c.url.includes("api.todoist.com")),false);
   }finally{h.restore();}
 });
+
+
+test("duplicate recently created task is not recreated",async()=>{
+  const h=harness();
+  try{
+    h.tasks[1].created_at=new Date().toISOString();
+    h.plan({operation:"create",title:"Купить саморезы",date:"",time:"",remind:false,priority:4});
+    const response=await h.send("Поставь задачу купить саморезы");
+    assert.match(response,/НЕ создавалась/);
+    assert.match(response,/TASK-B/);
+    assert.equal(h.calls.some(c=>c.method==="POST"&&c.url.endsWith("/api/v1/tasks")),false);
+  }finally{h.restore();}
+});
+
+test("check verifies a real Todoist read and does not merely look at settings",async()=>{
+  const h=harness();
+  try{
+    const reply=await h.send("/check");
+    assert.match(reply,/API доступен, чтение задач успешно/);
+    assert.match(reply,/KV HISTORY: чтение доступно/);
+    assert.ok(h.calls.some(c=>c.url.includes("/api/v1/tasks?")));
+  }finally{h.restore();}
+});
+
+test("last reports only a verified creation receipt",async()=>{
+  const h=harness();
+  try{
+    let reply=await h.send("/last");
+    assert.match(reply,/Нет сохранённого подтверждения/);
+    h.plan({operation:"create",title:"Подготовить рекламу",date:"",time:"",remind:false,priority:4});
+    reply=await h.send("Поставь задачу подготовить рекламу");
+    assert.match(reply,/создана и подтверждена/);
+    reply=await h.send("/last");
+    assert.match(reply,/Последнее подтверждённое действие/);
+    assert.match(reply,/Подготовить рекламу/);
+  }finally{h.restore();}
+});
