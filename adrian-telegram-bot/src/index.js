@@ -599,5 +599,3 @@ export default {
     return new Response("Not found", { status: 404 });
   }
 };
-
-[executed on device: MSI (f4bae329-0864-4381-bcba-d34ec4443a6f)]
