@@ -200,5 +200,3 @@ test("last reports only a verified creation receipt",async()=>{
     assert.match(reply,/Подготовить рекламу/);
   }finally{h.restore();}
 });
-
-[executed on device: MSI (f4bae329-0864-4381-bcba-d34ec4443a6f)]
